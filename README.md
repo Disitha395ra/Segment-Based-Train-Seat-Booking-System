@@ -195,6 +195,48 @@ This uses the half-open interval `[from, to)` model — if zero rows are returne
 
 ---
 
+## Core Design Decisions & Reasoning
+
+1. **Database-Backed Segment Tracking (Relational Model):**
+   * **Decision:** Modeled bookings using `seat_segment_bookings` with `from_station_order` and `to_station_order` on a continuous integer axis.
+   * **Reasoning:** Sri Lanka's train network is strictly linear (Colombo to Badulla). By assigning an integer index to each station based on its order, overlap detection reduces to a mathematically proven 1D intersection check (`startA < endB AND endA > startB`). This avoids complex graph databases or storing arrays of "occupied stations" per seat, keeping the database normalized and queries blazing fast.
+
+2. **Concurrency Control (Pessimistic Locking + Serializable Transactions):**
+   * **Decision:** Used `SELECT ... FOR UPDATE` wrapped in `SERIALIZABLE` isolation blocks inside Ballerina.
+   * **Reasoning:** The challenge explicitly requires handling concurrent booking attempts on the same seat. Optimistic locking (version columns) might lead to high failure rates during peak booking seasons (e.g., holidays). Pessimistic locking guarantees that once a user starts the booking transaction, overlapping bookings are immediately rejected, ensuring zero double-bookings.
+
+3. **Backend Choice (Ballerina Swan Lake):**
+   * **Decision:** Chose Ballerina instead of traditional Node.js/Spring Boot.
+   * **Reasoning:** Ballerina offers built-in network primitives, native JSON handling, and powerful concurrency features (like isolated functions). Its strict typing and compiler-enforced safety made implementing the complex transactional logic much more reliable.
+
+## Alternatives Considered
+
+1. **NoSQL / Document Store (MongoDB):**
+   * *Considered:* Storing a document per seat with an array of "booked segments".
+   * *Rejected because:* Ensuring cross-document transactional integrity during concurrent bookings in NoSQL is harder and more error-prone. Relational models with ACID compliance are vastly superior for financial/booking ledgers.
+
+2. **In-Memory Locks (Redis) for Concurrency:**
+   * *Considered:* Using Redis distributed locks before hitting the database.
+   * *Rejected because:* It introduces a point of failure and complexity. PostgreSQL's native row-level locking (`FOR UPDATE`) is battle-tested, simpler to maintain, and sufficiently performant for this scale.
+
+## Challenges Faced
+
+1. **Ballerina Concurrency Strictness:**
+   * Ballerina's `isolated` function paradigm ensures thread safety by preventing shared mutable state. However, capturing external variables inside `foreach` loops within `isolated` transaction blocks initially caused compiler errors. This required refactoring the closure logic to strictly adhere to concurrency rules.
+2. **Dockerizing Ballerina with PostgreSQL:**
+   * Ensuring the backend only starts executing queries *after* Flyway has completely finished migrating the seed data required careful orchestration using `depends_on` and `condition: service_completed_successfully` in Docker Compose.
+
+## Extra Credit Features Built
+
+1. **Seat Map Visualization (Frontend):**
+   * Visual representation of coaches showing exact seat availability for the selected segment, making it highly intuitive for passengers.
+2. **Fare Logic Beyond Simple Distance:**
+   * Implemented base rates per km combined with peak multipliers (configurable via `.env`), reflecting realistic dynamic pricing models rather than hardcoded flat fees.
+3. **Advanced Security (JWT + MFA + Rate Limiting):**
+   * Went beyond basic auth to include rolling refresh tokens, TOTP-based Multi-Factor Authentication (MFA), and sliding-window rate limiting per endpoint group to make this truly production-ready.
+
+---
+
 ## Default Seed Data
 
 After `docker compose up`, the database contains:
