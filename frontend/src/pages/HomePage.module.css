@@ -1,0 +1,250 @@
+.page {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Hero ─────────────────────────────────────────────────────────────────── */
+.hero {
+  background: linear-gradient(135deg, var(--color-primary-900) 0%, var(--color-primary-700) 60%, var(--color-primary-600) 100%);
+  padding: var(--space-16) var(--space-6) var(--space-20);
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  background: var(--color-neutral-50);
+  clip-path: ellipse(55% 100% at 50% 100%);
+}
+
+/* Subtle track lines decoration */
+.hero::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(255,255,255,0.05) 0,
+    rgba(255,255,255,0.05) 24px,
+    transparent 24px,
+    transparent 32px
+  );
+}
+
+.heroContent {
+  max-width: var(--max-width-xl);
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+.routeBadge {
+  display: inline-block;
+  padding: var(--space-1) var(--space-4);
+  background: rgba(200, 134, 10, 0.25);
+  border: 1px solid var(--color-accent-500);
+  border-radius: var(--radius-full);
+  color: var(--color-accent-400);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: var(--space-5);
+}
+
+.heroTitle {
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-white);
+  line-height: 1.2;
+  margin-bottom: var(--space-5);
+  letter-spacing: -0.02em;
+}
+
+.heroSub {
+  font-size: var(--font-size-lg);
+  color: rgba(255,255,255,0.7);
+  max-width: 520px;
+  line-height: var(--line-height-relaxed);
+}
+
+/* ── Search card ──────────────────────────────────────────────────────────── */
+.searchWrapper {
+  max-width: 880px;
+  margin: -40px auto 0;
+  padding: 0 var(--space-6);
+  position: relative;
+  z-index: 2;
+}
+
+.searchCard {
+  background: var(--color-white);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-xl);
+  padding: var(--space-8);
+  box-shadow: var(--shadow-xl);
+}
+
+.searchTitle {
+  font-size: var(--font-size-xl);
+  color: var(--color-primary-800);
+  margin-bottom: var(--space-6);
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+@media (max-width: 600px) {
+  .formGrid { grid-template-columns: 1fr; }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-neutral-700);
+}
+
+.select,
+.input {
+  padding: var(--space-3) var(--space-4);
+  border: 1.5px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  color: var(--color-neutral-800);
+  background: var(--color-white);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  outline: none;
+  width: 100%;
+}
+
+.select:focus,
+.input:focus {
+  border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 3px var(--color-primary-100);
+}
+
+.select:disabled {
+  background: var(--color-neutral-100);
+  color: var(--color-neutral-400);
+  cursor: not-allowed;
+}
+
+.fieldHint {
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-400);
+}
+
+/* ── Route preview ────────────────────────────────────────────────────────── */
+.routePreview {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-primary-50);
+  border: 1px solid var(--color-primary-100);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-5);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary-700);
+}
+
+.routeArrow {
+  color: var(--color-accent-500);
+}
+
+.routeDist {
+  margin-left: auto;
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
+  font-weight: var(--font-weight-normal);
+}
+
+/* ── Search button ────────────────────────────────────────────────────────── */
+.searchBtn {
+  width: 100%;
+  padding: var(--space-4) var(--space-6);
+  background: var(--color-primary-700);
+  color: var(--color-white);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+}
+
+.searchBtn:hover {
+  background: var(--color-primary-600);
+  transform: translateY(-1px);
+}
+
+.searchBtn:active {
+  transform: translateY(0);
+}
+
+/* ── How it works ─────────────────────────────────────────────────────────── */
+.howItWorks {
+  padding: var(--space-20) var(--space-6) var(--space-16);
+}
+
+.howTitle {
+  font-size: var(--font-size-2xl);
+  text-align: center;
+  color: var(--color-primary-800);
+  margin-bottom: var(--space-10);
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-8);
+  max-width: var(--max-width-xl);
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .steps { grid-template-columns: 1fr; max-width: 400px; }
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.stepNum {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-neutral-200);
+  line-height: 1;
+}
+
+.stepTitle {
+  font-size: var(--font-size-lg);
+  color: var(--color-primary-800);
+}
+
+.stepBody {
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-500);
+  line-height: var(--line-height-relaxed);
+}

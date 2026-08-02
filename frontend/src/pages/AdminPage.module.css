@@ -1,0 +1,80 @@
+.page { padding: var(--space-8) 0 var(--space-16); }
+
+.tabs {
+  display: flex;
+  gap: var(--space-1);
+  border-bottom: 2px solid var(--color-neutral-200);
+  margin-bottom: var(--space-8);
+}
+
+.tab {
+  padding: var(--space-3) var(--space-6);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-neutral-500);
+  transition: all var(--transition-fast);
+  text-transform: capitalize;
+}
+.tab:hover { color: var(--color-primary-700); }
+.tabActive {
+  color: var(--color-primary-700);
+  border-bottom-color: var(--color-primary-700);
+  font-weight: var(--font-weight-semibold);
+}
+
+.section { display: flex; flex-direction: column; gap: var(--space-6); }
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding: var(--space-4) var(--space-6);
+  background: var(--color-neutral-50);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-600);
+}
+
+.dateInput {
+  padding: var(--space-1) var(--space-3);
+  border: 1.5px solid var(--color-neutral-200);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-800);
+  margin-left: var(--space-2);
+}
+
+.loadBtn {
+  padding: var(--space-2) var(--space-5);
+  background: var(--color-primary-700);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+.loadBtn:hover:not(:disabled) { background: var(--color-primary-600); }
+.loadBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.tableWrap {
+  background: var(--color-white);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  overflow-x: auto;
+}
+
+.empty {
+  text-align: center;
+  padding: var(--space-12);
+  color: var(--color-neutral-400);
+  font-size: var(--font-size-sm);
+}

@@ -1,0 +1,133 @@
+.page { padding: var(--space-8) 0 var(--space-16); }
+
+.loading {
+  text-align: center;
+  padding: var(--space-12);
+  color: var(--color-neutral-400);
+}
+
+.empty {
+  text-align: center;
+  padding: var(--space-16);
+  color: var(--color-neutral-400);
+}
+.empty p { margin-bottom: var(--space-4); font-size: var(--font-size-lg); }
+.bookLink {
+  color: var(--color-primary-700);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.bookingCard {
+  background: var(--color-white);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
+  transition: box-shadow var(--transition-fast);
+}
+.bookingCard:hover { box-shadow: var(--shadow-md); }
+
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-4) var(--space-6);
+  background: var(--color-neutral-50);
+  border-bottom: 1px solid var(--color-neutral-100);
+}
+
+.refCode {
+  font-family: monospace;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary-800);
+  letter-spacing: 0.05em;
+}
+
+.date {
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-500);
+}
+
+.cardBody {
+  padding: var(--space-5) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.infoRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-700);
+}
+
+.infoLabel {
+  color: var(--color-neutral-400);
+}
+
+.fare {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary-700);
+}
+
+.held {
+  color: var(--color-warning-600);
+  font-weight: var(--font-weight-semibold);
+}
+
+.cardFooter {
+  padding: var(--space-3) var(--space-6);
+  border-top: 1px solid var(--color-neutral-100);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.cancelBtn {
+  padding: var(--space-2) var(--space-4);
+  background: transparent;
+  color: var(--color-error-600);
+  border: 1.5px solid var(--color-error-600);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.cancelBtn:hover:not(:disabled) {
+  background: var(--color-error-50);
+}
+.cancelBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  margin-top: var(--space-8);
+}
+
+.pageBtn {
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-white);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.pageBtn:hover:not(:disabled) { border-color: var(--color-primary-500); color: var(--color-primary-700); }
+.pageBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.pageInfo {
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-500);
+}

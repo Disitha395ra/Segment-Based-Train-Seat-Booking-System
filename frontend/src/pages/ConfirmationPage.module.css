@@ -1,0 +1,131 @@
+.page { padding: var(--space-10) 0 var(--space-16); }
+
+.card {
+  background: var(--color-white);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-xl);
+  padding: var(--space-12) var(--space-10);
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+}
+
+.checkmark {
+  width: 64px;
+  height: 64px;
+  background: var(--color-success-100);
+  color: var(--color-success-700);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: var(--font-weight-bold);
+  margin: 0 auto var(--space-6);
+}
+
+.title {
+  font-size: var(--font-size-3xl);
+  color: var(--color-primary-800);
+  margin-bottom: var(--space-3);
+}
+
+.subtitle {
+  color: var(--color-neutral-500);
+  margin-bottom: var(--space-8);
+}
+
+.refBox {
+  background: var(--color-primary-800);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  margin-bottom: var(--space-8);
+}
+
+.refLabel {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: rgba(255,255,255,0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: var(--space-2);
+}
+
+.refCode {
+  display: block;
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-accent-400);
+  letter-spacing: 0.1em;
+  font-variant-numeric: tabular-nums;
+}
+
+.details {
+  text-align: left;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: var(--space-6);
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--font-size-sm);
+  border-bottom: 1px solid var(--color-neutral-100);
+}
+.detailRow:last-child { border-bottom: none; }
+.detailRow span { color: var(--color-neutral-500); }
+.detailRow strong { color: var(--color-neutral-800); }
+
+.fare { color: var(--color-primary-700) !important; font-size: var(--font-size-lg); }
+
+.segmentNote {
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-400);
+  background: var(--color-neutral-50);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-bottom: var(--space-8);
+  text-align: left;
+  line-height: var(--line-height-relaxed);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-4);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.newBookingBtn, .viewBookingsBtn {
+  padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+  transition: all var(--transition-fast);
+  display: inline-block;
+}
+
+.newBookingBtn {
+  background: var(--color-primary-700);
+  color: var(--color-white);
+}
+.newBookingBtn:hover {
+  background: var(--color-primary-600);
+  color: var(--color-white);
+  text-decoration: none;
+}
+
+.viewBookingsBtn {
+  background: transparent;
+  color: var(--color-primary-700);
+  border: 1.5px solid var(--color-primary-700);
+}
+.viewBookingsBtn:hover {
+  background: var(--color-primary-50);
+  text-decoration: none;
+}

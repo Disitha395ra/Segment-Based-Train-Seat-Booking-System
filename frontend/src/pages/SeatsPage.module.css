@@ -1,0 +1,247 @@
+.page {
+  padding: var(--space-8) 0 var(--space-16);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  margin-bottom: var(--space-8);
+  flex-wrap: wrap;
+}
+
+.backBtn {
+  background: transparent;
+  border: 1px solid var(--color-neutral-200);
+  color: var(--color-neutral-600);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+.backBtn:hover {
+  border-color: var(--color-primary-500);
+  color: var(--color-primary-700);
+}
+
+.tripInfo { flex: 1; }
+
+.tripTitle {
+  font-size: var(--font-size-2xl);
+  color: var(--color-primary-800);
+}
+
+.tripMeta {
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-500);
+  margin-top: var(--space-1);
+}
+
+.liveIndicator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-success-600);
+}
+
+.liveDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-success-600);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.6; transform: scale(1.3); }
+}
+
+/* ── Layout ──────────────────────────────────────────────────────────────── */
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: var(--space-8);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+}
+
+.mapSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* ── Conflict banner ─────────────────────────────────────────────────────── */
+.conflictBanner {
+  background: var(--color-error-50);
+  border: 1.5px solid var(--color-error-600);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  color: var(--color-error-700);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+/* ── Sidebar card ────────────────────────────────────────────────────────── */
+.sidebar { display: flex; flex-direction: column; gap: var(--space-4); }
+
+.sideCard {
+  background: var(--color-white);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: 80px;
+}
+
+.sideTitle {
+  font-size: var(--font-size-lg);
+  color: var(--color-primary-800);
+  margin-bottom: var(--space-5);
+}
+
+.routeBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.routeRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-size-sm);
+}
+
+.routeLabel {
+  color: var(--color-neutral-500);
+}
+
+.routeValue {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-neutral-800);
+}
+
+.routeLine {
+  height: 1px;
+  background: var(--color-neutral-200);
+  margin: var(--space-1) 0;
+}
+
+/* ── Selected seat ───────────────────────────────────────────────────────── */
+.selectedBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-seat-selected);
+  border: 1.5px solid var(--color-seat-sel-border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+}
+
+.selectedBadge {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary-700);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.selectedDetail {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary-800);
+}
+
+.coachClassTag {
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
+  font-weight: var(--font-weight-normal);
+}
+
+.selectHint {
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-400);
+  text-align: center;
+  padding: var(--space-4);
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.bookBtn {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-primary-700);
+  color: var(--color-white);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.bookBtn:hover { background: var(--color-primary-600); }
+
+.clearBtn {
+  width: 100%;
+  padding: var(--space-2) var(--space-4);
+  background: transparent;
+  color: var(--color-neutral-500);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.clearBtn:hover { color: var(--color-error-600); border-color: var(--color-error-600); }
+
+/* ── Fully booked ────────────────────────────────────────────────────────── */
+.fullyBooked {
+  text-align: center;
+  padding: var(--space-4);
+  background: var(--color-error-50);
+  border-radius: var(--radius-md);
+  margin-top: var(--space-4);
+}
+
+.fullyBooked p {
+  font-size: var(--font-size-sm);
+  color: var(--color-error-700);
+  margin-bottom: var(--space-3);
+}
+
+.waitlistBtn {
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-error-700);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.wlInput {
+  padding: var(--space-3);
+  border: 1.5px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  width: 100%;
+}
+.wlInput:focus {
+  outline: none;
+  border-color: var(--color-primary-500);
+}
