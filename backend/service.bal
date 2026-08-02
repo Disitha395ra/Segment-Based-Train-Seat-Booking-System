@@ -26,22 +26,12 @@ final cache:Cache availabilityCache = new ({
 
 // ── Listener with interceptor pipeline ───────────────────────────────────────
 listener http:Listener httpListener = new (9090, {
-    interceptors: [
-        new RateLimitInterceptor(),
-        new AuthInterceptor(),
-        new SecurityHeadersInterceptor(),
-        new ErrorInterceptor()
-    ],
     httpVersion: http:HTTP_1_1
 });
 
 // ── Background: expire held bookings every 2 minutes ─────────────────────────
 function init() returns error? {
-    _ = check task:scheduleJobRecurrence(
-        new ExpiryJob(), {
-            intervalInMillis: 120000  // 2 minutes
-        }
-    );
+    _ = check task:scheduleJobRecurByFrequency(new ExpiryJob(), 120);
     log:printInfo("Train Booking API starting on port 9090");
     log:printInfo("Environment: " + appEnv);
 }
@@ -61,7 +51,7 @@ class ExpiryJob {
 // =============================================================================
 service /health on httpListener {
     resource function get .() returns json|error {
-        time:Utc t0 = time:utcNow();
+
         int|error dbLatency = dbPingCheck();
 
         string dbStatus = dbLatency is int ? "up" : "down";
@@ -90,18 +80,23 @@ service /health on httpListener {
 // =============================================================================
 // API v1 — /api/v1
 // =============================================================================
-service /api/v1 on httpListener {
+@http:ServiceConfig {
+    cors: {
+        allowOrigins: [corsAllowedOrigins],
+        allowCredentials: true,
+        allowHeaders: ["Authorization", "Content-Type", "X-Request-ID"],
+        allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    }
+}
+service http:InterceptableService /api/v1 on httpListener {
 
-    // ── CORS preflight ─────────────────────────────────────────────────────
-    resource function options [string... path](http:Request req) returns http:Response {
-        http:Response resp = new;
-        resp.setHeader("Access-Control-Allow-Origin",  corsAllowedOrigins);
-        resp.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-        resp.setHeader("Access-Control-Allow-Headers",
-                       "Content-Type, Authorization, X-Request-ID");
-        resp.setHeader("Access-Control-Max-Age", "86400");
-        resp.statusCode = 204;
-        return resp;
+    public function createInterceptors() returns [RateLimitInterceptor, AuthInterceptor, SecurityHeadersInterceptor, ErrorInterceptor] {
+        return [
+            new RateLimitInterceptor(),
+            new AuthInterceptor(),
+            new SecurityHeadersInterceptor(),
+            new ErrorInterceptor()
+        ];
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -235,7 +230,7 @@ service /api/v1 on httpListener {
 
         SeatAvailability[] seats = check dbGetSeatAvailability(trainId, 'from, to, date);
         json response = okResponse(seats.toJson());
-        _ = availabilityCache.put(cacheKey, response);
+        check availabilityCache.put(cacheKey, response);
         return response;
     }
 

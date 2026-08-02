@@ -11,6 +11,7 @@ import ballerina/jwt;
 import ballerina/time;
 import ballerina/uuid;
 import ballerina/log;
+import ballerina/regex;
 
 // ═════════════════════════════════════════════════════════════════════════════
 // 1. SECURITY HEADERS INTERCEPTOR (Response)
@@ -20,6 +21,9 @@ public isolated service class SecurityHeadersInterceptor {
 
     remote isolated function interceptResponse(
             http:RequestContext ctx, http:Response res) returns http:NextService|error? {
+        res.setHeader("Access-Control-Allow-Origin",  corsAllowedOrigins);
+        res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-ID");
         res.setHeader("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
         res.setHeader("Content-Security-Policy",   "default-src 'none'");
         res.setHeader("X-Content-Type-Options",    "nosniff");
@@ -41,20 +45,21 @@ public isolated service class RateLimitInterceptor {
     resource isolated function 'default [string... path](
             http:RequestContext ctx, http:Request req)
             returns http:NextService|error? {
-        string ip = req.getHeader("X-Forwarded-For") ?: "unknown";
+        string|http:HeaderNotFoundError fwdHeader = req.getHeader("X-Forwarded-For");
+        string ip = fwdHeader is string ? fwdHeader : "unknown";
         // Strip port if present
         if ip.includes(",") {
-            ip = ip.split(",")[0].trim();
+            ip = regex:split(ip, ",")[0].trim();
         }
 
         // Determine endpoint group from path
         string pathStr = "/" + string:'join("/", ...path);
         string group;
         int maxReqs;
-        if pathStr.startsWith("/api/v1/auth") {
+        if pathStr.startsWith("/auth") {
             group = RATE_LIMIT_GROUP_AUTH;
             maxReqs = rateLimitAuth;
-        } else if pathStr.startsWith("/api/v1/bookings") || pathStr == "/api/v1/bookings" {
+        } else if pathStr.startsWith("/bookings") || pathStr == "/bookings" {
             group = RATE_LIMIT_GROUP_BOOKING;
             maxReqs = rateLimitBooking;
         } else {
@@ -115,20 +120,22 @@ public isolated service class AuthInterceptor {
 }
 
 isolated function isPublicRoute(string path, string method) returns boolean {
+    if method == "OPTIONS" {
+        return true;
+    }
     // GET stations, trains, availability — no auth required
     if method == "GET" && (
-        path.startsWith("/api/v1/stations") ||
-        path.startsWith("/api/v1/trains")   ||
-        path.startsWith("/api/v1/fare")     ||
-        path == "/health"                   ||
-        path.startsWith("/api/v1/docs")
+        path.startsWith("/stations") ||
+        path.startsWith("/trains")   ||
+        path.startsWith("/fare")     ||
+        path.startsWith("/docs")
     ) {
         return true;
     }
     // Auth endpoints are public
-    if path.startsWith("/api/v1/auth/login")    ||
-       path.startsWith("/api/v1/auth/register") ||
-       path.startsWith("/api/v1/auth/refresh") {
+    if path.startsWith("/auth/login")    ||
+       path.startsWith("/auth/register") ||
+       path.startsWith("/auth/refresh") {
         return true;
     }
     return false;
@@ -249,7 +256,13 @@ public isolated function ctxRole(http:RequestContext ctx) returns string =>
 public isolated function requireRole(http:RequestContext ctx, string[] allowedRoles)
         returns AuthError? {
     string role = ctxRole(ctx);
-    boolean found = allowedRoles.some(isolated function(string r) returns boolean => r == role);
+    boolean found = false;
+    foreach string r in allowedRoles {
+        if r == role {
+            found = true;
+            break;
+        }
+    }
     if !found {
         return error AuthError("Insufficient permissions. Required role: " + allowedRoles.toString());
     }
@@ -260,7 +273,7 @@ public isolated function requireRole(http:RequestContext ctx, string[] allowedRo
 public isolated function clientIp(http:Request req) returns string? {
     string|http:HeaderNotFoundError fwd = req.getHeader("X-Forwarded-For");
     if fwd is string {
-        return fwd.split(",")[0].trim();
+        return regex:split(fwd, ",")[0].trim();
     }
     return ();
 }
