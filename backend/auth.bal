@@ -8,7 +8,7 @@ import ballerina/time;
 import ballerina/uuid;
 import ballerina/lang.array;
 import ballerina/regex;
-import ballerina/log;
+
 
 // ── Password Hashing (SHA-256 + salt, 10k iterations) ────────────────────────
 // Production note: Ballerina stdlib lacks native bcrypt; PBKDF2-SHA256 via
@@ -18,14 +18,14 @@ isolated function hashPassword(string password, string salt) returns string|erro
     // 10,000 rounds of SHA-256(salt + round + password) for key stretching
     byte[] data = (salt + password).toBytes();
     foreach int i in 0 ..< 10000 {
-        data = check crypto:hashSha256(data);
+        data = crypto:hashSha256(data);
     }
     return array:toBase16(data);
 }
 
 isolated function generateSalt() returns string {
     // 16-byte random salt as UUID (sufficient entropy)
-    return uuid:createType4AsString().replace("-", "");
+    return regex:replaceAll(uuid:createType4AsString(), "-", "");
 }
 
 isolated function verifyPassword(string password, string salt, string storedHash)
@@ -41,7 +41,7 @@ isolated function issueAccessToken(string userId, string role, boolean mfaDone)
         username: userId,
         issuer: "train-booking-api",
         audience: ["train-booking-client"],
-        expTime: jwtAccessExpirySeconds,
+        expTime: <decimal>jwtAccessExpirySeconds,
         customClaims: {
             [JWT_CLAIM_USER_ID]: userId,
             [JWT_CLAIM_ROLE]: role,
@@ -49,9 +49,7 @@ isolated function issueAccessToken(string userId, string role, boolean mfaDone)
         },
         signatureConfig: {
             algorithm: jwt:HS256,
-            config: {
-                secret: jwtSecret
-            }
+            config: jwtSecret
         }
     };
     return check jwt:issue(issuerConfig);
@@ -75,11 +73,7 @@ isolated function validateAccessToken(string token)
 }
 
 isolated function extractClaim(jwt:Payload payload, string claimKey) returns string? {
-    map<json>? customClaims = payload.customClaims;
-    if customClaims is () {
-        return ();
-    }
-    json? val = customClaims[claimKey];
+    anydata val = payload[claimKey];
     if val is string {
         return val;
     }
@@ -92,7 +86,7 @@ isolated function generateRefreshToken() returns string {
 }
 
 isolated function hashToken(string token) returns string|error {
-    byte[] hashed = check crypto:hashSha256(token.toBytes());
+    byte[] hashed = crypto:hashSha256(token.toBytes());
     return array:toBase16(hashed);
 }
 
@@ -338,14 +332,14 @@ isolated function int64ToBytes(int value) returns byte[] {
 isolated function generateTotpSecret() returns string {
     // 20 random bytes, base32-encoded
     // Using UUID-derived randomness (16 bytes sufficient for TOTP)
-    string u1 = uuid:createType4AsString().replace("-", "");
-    string u2 = uuid:createType4AsString().replace("-", "").substring(0, 8);
+    string u1 = regex:replaceAll(uuid:createType4AsString(), "-", "");
+    string u2 = regex:replaceAll(uuid:createType4AsString(), "-", "").substring(0, 8);
     byte[] raw = (u1 + u2).toBytes().slice(0, 20);
     return encodeBase32(raw);
 }
 
 isolated function generateBackupCode() returns string {
-    string u = uuid:createType4AsString().replace("-", "");
+    string u = regex:replaceAll(uuid:createType4AsString(), "-", "");
     return u.substring(0, 4).toUpperAscii() + "-" + u.substring(4, 8).toUpperAscii();
 }
 

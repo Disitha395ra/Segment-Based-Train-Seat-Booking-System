@@ -10,14 +10,14 @@ import ballerinax/postgresql;
 import ballerinax/postgresql.driver as _;
 
 // ── Singleton DB client (initialized once, reused via DI) ───────────────────
-postgresql:Client dbClient = check initDb();
+final postgresql:Client dbClient = check initDb();
 
 function initDb() returns postgresql:Client|error {
     postgresql:Options opts = {
         connectTimeout: 10,
         socketTimeout: 30
     };
-    postgresql:Client client = check new (
+    postgresql:Client dbPgClient = check new (
         host = dbHost,
         port = dbPort,
         database = dbName,
@@ -31,7 +31,7 @@ function initDb() returns postgresql:Client|error {
         }
     );
     log:printInfo("Database connection pool initialized");
-    return client;
+    return dbPgClient;
 }
 
 // ── Helper: build standard offset for pagination ─────────────────────────────
@@ -170,7 +170,7 @@ isolated function dbGetSeatAvailability(
 isolated function dbCreateBooking(
         string userId, CreateBookingRequest req, string referenceCode,
         int fromOrder, int toOrder, decimal fare, json fareBreakdown)
-        returns BookingRow|ConflictError|DatabaseError {
+        returns BookingRow|ConflictError|NotFoundError|DatabaseError|error {
 
     time:Utc now = time:utcNow();
     time:Utc heldUntil = time:utcAddSeconds(now, <decimal>(BOOKING_HOLD_MINUTES * 60));
@@ -183,8 +183,7 @@ isolated function dbCreateBooking(
             `SELECT id FROM seats WHERE id = ${req.seatId}::uuid AND deleted_at IS NULL FOR UPDATE`
         );
         if lockResult is sql:Error {
-            rollback;
-            return error DatabaseError("Seat lock failed", lockResult);
+            fail error DatabaseError("Seat lock failed", lockResult);
         }
 
         // Step 2: Check for overlapping confirmed/held bookings
@@ -197,12 +196,10 @@ isolated function dbCreateBooking(
                 AND to_station_order   > ${fromOrder}`
         );
         if overlapCount is sql:Error {
-            rollback;
-            return error DatabaseError("Overlap check failed", overlapCount);
+            fail error DatabaseError("Overlap check failed", overlapCount);
         }
         if overlapCount > 0 {
-            rollback;
-            return error ConflictError("Seat already booked for this segment");
+            fail error ConflictError("Seat already booked for this segment");
         }
 
         // Step 3: Insert booking record
@@ -227,8 +224,7 @@ isolated function dbCreateBooking(
                 ${heldUntilStr}::timestamptz)`
         );
         if bookingResult is sql:Error {
-            rollback;
-            return error DatabaseError("Booking insert failed", bookingResult);
+            fail error DatabaseError("Booking insert failed", bookingResult);
         }
 
         // Step 4: Fetch the generated booking ID
@@ -236,8 +232,7 @@ isolated function dbCreateBooking(
             `SELECT id::text FROM bookings WHERE reference_code = ${referenceCode}`
         );
         if newBookingId is sql:Error {
-            rollback;
-            return error DatabaseError("Failed to fetch new booking id", newBookingId);
+            fail error DatabaseError("Failed to fetch new booking id", newBookingId);
         }
 
         // Step 5: Insert seat segment booking
@@ -249,13 +244,12 @@ isolated function dbCreateBooking(
                 ${req.travelDate}::date, 'HELD')`
         );
         if ssbResult is sql:Error {
-            rollback;
-            return error DatabaseError("Segment booking insert failed", ssbResult);
+            fail error DatabaseError("Segment booking insert failed", ssbResult);
         }
 
         check commit;
     } on fail error err {
-        if err is ConflictError {
+        if err is ConflictError || err is DatabaseError {
             return err;
         }
         return error DatabaseError("Transaction failed", err);
@@ -290,18 +284,21 @@ isolated function dbCancelBooking(string bookingId)
                 AND deleted_at IS NULL`
         );
         if result is sql:Error {
-            rollback;
-            return error DatabaseError("Cancel booking failed", result);
+            fail error DatabaseError("Cancel booking failed", result);
         }
-        if (check result).affectedRowCount == 0 {
-            rollback;
-            return error NotFoundError("Booking not found or already cancelled");
+        if result.affectedRowCount == 0 {
+            fail error NotFoundError("Booking not found or already cancelled");
         }
         _ = check dbClient->execute(
             `UPDATE seat_segment_bookings SET status = 'CANCELLED'
               WHERE booking_id = ${bookingId}::uuid`
         );
         check commit;
+    } on fail error err {
+        if err is NotFoundError || err is DatabaseError {
+            return err;
+        }
+        return error DatabaseError("Cancel transaction failed", err);
     }
 }
 
@@ -522,7 +519,7 @@ isolated function dbUseBackupCode(string userId, string codeHash) returns boolea
     if result is sql:Error {
         return error DatabaseError("Failed to use backup code", result);
     }
-    return (check result).affectedRowCount > 0;
+    return result.affectedRowCount > 0;
 }
 
 // =============================================================================
@@ -533,7 +530,7 @@ isolated function dbCheckAndIncrementRateLimit(
         returns boolean|DatabaseError {
     time:Utc now = time:utcNow();
     // Truncate to window boundary
-    int windowStart = <int>(time:utcNow()[0] / windowSeconds) * windowSeconds;
+    int windowStart = <int>(now[0] / windowSeconds) * windowSeconds;
     string windowStartStr = time:utcToString([windowStart, 0]);
 
     // Upsert rate limit window

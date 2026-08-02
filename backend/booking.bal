@@ -6,6 +6,7 @@ import ballerina/time;
 import ballerina/uuid;
 import ballerina/regex;
 import ballerina/log;
+import ballerina/sql;
 
 // ── Booking Creation ──────────────────────────────────────────────────────────
 public isolated function createBooking(
@@ -175,7 +176,7 @@ public isolated function estimateFare(FareEstimateRequest req)
 
 // ── Reference Code Generation ─────────────────────────────────────────────────
 isolated function generateReferenceCode() returns string {
-    string u = uuid:createType4AsString().replace("-", "").toUpperAscii();
+    string u = regex:replaceAll(uuid:createType4AsString(), "-", "").toUpperAscii();
     return "TK" + u.substring(0, 8);
 }
 
@@ -215,7 +216,7 @@ isolated function parseTravelDate(string dateStr) returns time:Civil|error {
     int year  = check int:fromString(parts[0]);
     int month = check int:fromString(parts[1]);
     int day   = check int:fromString(parts[2]);
-    return {year: year, month: <time:Month>month, day: day, hour: 0, minute: 0, second: 0};
+    return {year: year, month: month, day: day, hour: 0, minute: 0, second: 0d};
 }
 
 // ── DB helpers specific to booking ────────────────────────────────────────────
