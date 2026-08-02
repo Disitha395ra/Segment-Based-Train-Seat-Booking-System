@@ -10,4 +10,4 @@ observabilityIncluded = true
 [[dependency]]
 org = "ballerinax"
 name = "postgresql"
-version = "1.14.0"
+version = "1.13.3"
