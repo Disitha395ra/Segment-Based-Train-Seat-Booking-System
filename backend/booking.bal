@@ -24,9 +24,11 @@ public isolated function createBooking(
         return error ValidationError("Origin must come before destination on the route");
     }
 
-    // 3. Validate travel date
-    time:Utc today = time:utcNow();
-    time:Civil todayCivil = time:utcToCivil(today);
+    // 3. Validate travel date (using Sri Lanka timezone UTC+5:30)
+    time:Utc utcNow = time:utcNow();
+    // Add 5 hours and 30 minutes (19800 seconds) to UTC to get IST/SLST
+    time:Utc localNow = [utcNow[0] + 19800, utcNow[1]];
+    time:Civil todayCivil = time:utcToCivil(localNow);
     time:Civil|error travelCivil = parseTravelDate(req.travelDate);
     if travelCivil is error {
         return error ValidationError("Invalid travel date format (use YYYY-MM-DD)");

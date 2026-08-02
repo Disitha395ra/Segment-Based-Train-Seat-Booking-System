@@ -3,11 +3,16 @@ import { adminApi } from '../api/endpoints'
 import { useToast } from '../components/common/Toast/ToastContext'
 import styles from './AdminPage.module.css'
 
-const today = () => new Date().toISOString().split('T')[0]
+const getLocalISO = (date) => {
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().split('T')[0];
+}
+
+const today = () => getLocalISO(new Date())
 const fourWeeksAgo = () => {
   const d = new Date()
   d.setDate(d.getDate() - 28)
-  return d.toISOString().split('T')[0]
+  return getLocalISO(d)
 }
 
 export default function AdminPage() {

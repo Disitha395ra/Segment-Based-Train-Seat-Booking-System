@@ -12,8 +12,14 @@ export default function HomePage() {
   const [trains,   setTrains]   = useState([])
   const [loading,  setLoading]  = useState(true)
 
-  const today = new Date().toISOString().split('T')[0]
-  const maxDate = new Date(Date.now() + 90 * 86400000).toISOString().split('T')[0]
+  const now = new Date()
+  // Adjust to local timezone format YYYY-MM-DD
+  const offset = now.getTimezoneOffset() * 60000
+  const localToday = new Date(now.getTime() - offset)
+  const today = localToday.toISOString().split('T')[0]
+  
+  const maxTime = new Date(now.getTime() + 90 * 86400000 - offset)
+  const maxDate = maxTime.toISOString().split('T')[0]
 
   const [form, setForm] = useState({
     trainId:       '',
