@@ -1,0 +1,114 @@
+version: "3.9"
+
+# ─── Networks ───────────────────────────────────────────────────────────────────
+networks:
+  trainnet:
+    driver: bridge
+
+# ─── Named Volumes ──────────────────────────────────────────────────────────────
+volumes:
+  pgdata:
+    driver: local
+
+# ─── Services ───────────────────────────────────────────────────────────────────
+services:
+
+  # ── PostgreSQL 16 ─────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: trainbooking_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-trainbooking}
+      POSTGRES_USER: ${POSTGRES_USER:-trainuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - trainnet
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-trainuser} -d ${POSTGRES_DB:-trainbooking}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    ports:
+      - "5432:5432"  # exposed for local tooling — remove in prod
+
+  # ── Flyway Migrations ─────────────────────────────────────────────────────────
+  migrate:
+    image: flyway/flyway:10-alpine
+    container_name: trainbooking_migrate
+    command: >
+      -url=${FLYWAY_URL:-jdbc:postgresql://db:5432/trainbooking}
+      -user=${FLYWAY_USER:-trainuser}
+      -password=${FLYWAY_PASSWORD}
+      -locations=filesystem:/flyway/sql
+      -connectRetries=10
+      migrate
+    volumes:
+      - ./db/migrations:/flyway/sql:ro
+    networks:
+      - trainnet
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: on-failure
+
+  # ── Ballerina Backend ─────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: trainbooking_backend
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: ${POSTGRES_HOST:-db}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:-trainbooking}
+      POSTGRES_USER: ${POSTGRES_USER:-trainuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_EXPIRY_SECONDS: ${JWT_ACCESS_EXPIRY_SECONDS:-900}
+      JWT_REFRESH_EXPIRY_DAYS: ${JWT_REFRESH_EXPIRY_DAYS:-7}
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY}
+      FARE_BASE_RATE_PER_KM: ${FARE_BASE_RATE_PER_KM:-2.50}
+      FARE_PEAK_MULTIPLIER: ${FARE_PEAK_MULTIPLIER:-1.2}
+      RATE_LIMIT_GENERAL: ${RATE_LIMIT_GENERAL:-100}
+      RATE_LIMIT_BOOKING: ${RATE_LIMIT_BOOKING:-20}
+      RATE_LIMIT_AUTH: ${RATE_LIMIT_AUTH:-10}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      APP_ENV: ${APP_ENV:-production}
+    networks:
+      - trainnet
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9090/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    ports:
+      - "9090:9090"
+
+  # ── React Frontend (Nginx) ────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:9090}
+        VITE_APP_NAME: ${VITE_APP_NAME:-SL Train Booking}
+    container_name: trainbooking_frontend
+    restart: unless-stopped
+    networks:
+      - trainnet
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3000:80"

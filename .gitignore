@@ -1,0 +1,33 @@
+# ─── Secrets (NEVER commit real values) ────────────────────────────────────────
+.env
+backend/Config.toml
+*.secret
+*.key
+*.pem
+
+# ─── Ballerina ──────────────────────────────────────────────────────────────────
+backend/target/
+backend/.ballerina/
+**/*.balx
+
+# ─── Node / React ───────────────────────────────────────────────────────────────
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.env.production
+
+# ─── Docker ─────────────────────────────────────────────────────────────────────
+docker-compose.override.yml
+
+# ─── OS ─────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/settings.json
+
+# ─── Logs ───────────────────────────────────────────────────────────────────────
+*.log
+logs/
