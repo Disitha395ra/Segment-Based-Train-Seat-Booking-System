@@ -122,7 +122,6 @@ CREATE TABLE bookings (
     id               UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     reference_code   VARCHAR(20)  NOT NULL,
     user_id          UUID         REFERENCES users(id) ON DELETE SET NULL,
-    seat_id          UUID         NOT NULL REFERENCES seats(id) ON DELETE RESTRICT,
     from_station_id  UUID         NOT NULL REFERENCES stations(id) ON DELETE RESTRICT,
     to_station_id    UUID         NOT NULL REFERENCES stations(id) ON DELETE RESTRICT,
     travel_date      DATE         NOT NULL,
