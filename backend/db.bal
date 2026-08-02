@@ -701,18 +701,27 @@ isolated function dbGetRevenue(string fromDate, string toDate, int page, int 'li
         returns RevenueRecord[]|DatabaseError {
     int offset = calcOffset(page, 'limit);
     stream<RevenueRecord, sql:Error?> resultStream = dbClient->query(
-        `SELECT b.travel_date::text AS "travelDate",
-                c.coach_class       AS "coachClass",
+        `WITH booking_classes AS (
+             SELECT DISTINCT b.id AS booking_id, c.coach_class
+               FROM bookings b
+               JOIN seat_segment_bookings ssb ON ssb.booking_id = b.id
+               JOIN seats s ON s.id = ssb.seat_id
+               JOIN coaches c ON c.id = s.coach_id
+              WHERE b.travel_date BETWEEN ${fromDate}::date AND ${toDate}::date
+                AND b.status = 'CONFIRMED'
+                AND b.deleted_at IS NULL
+         )
+         SELECT b.travel_date::text AS "travelDate",
+                bc.coach_class      AS "coachClass",
                 COUNT(b.id)::int    AS "totalBookings",
                 SUM(b.fare_amount)  AS "totalRevenue"
            FROM bookings b
-           JOIN seats   s ON s.id = b.seat_id
-           JOIN coaches c ON c.id = s.coach_id
+           JOIN booking_classes bc ON bc.booking_id = b.id
           WHERE b.travel_date BETWEEN ${fromDate}::date AND ${toDate}::date
-            AND b.status IN ('CONFIRMED')
+            AND b.status = 'CONFIRMED'
             AND b.deleted_at IS NULL
-          GROUP BY b.travel_date, c.coach_class
-          ORDER BY b.travel_date DESC, c.coach_class
+          GROUP BY b.travel_date, bc.coach_class
+          ORDER BY b.travel_date DESC, bc.coach_class
           LIMIT ${'limit} OFFSET ${offset}`
     );
     RevenueRecord[]|error result = from RevenueRecord row in resultStream select row;
