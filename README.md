@@ -229,10 +229,18 @@ This uses the half-open interval `[from, to)` model — if zero rows are returne
 ## Extra Credit Features Built
 
 1. **Seat Map Visualization (Frontend):**
-   * Visual representation of coaches showing exact seat availability for the selected segment, making it highly intuitive for passengers.
-2. **Fare Logic Beyond Simple Distance:**
-   * Implemented base rates per km combined with peak multipliers (configurable via `.env`), reflecting realistic dynamic pricing models rather than hardcoded flat fees.
-3. **Advanced Security (JWT + MFA + Rate Limiting):**
+   * Visual representation of coaches showing exact seat availability for the selected segment, making it highly intuitive for passengers. Partially-booked seats along the route are accurately represented.
+2. **Multi-Seat (Family) Booking:**
+   * Transitioned the system from a strict "1 Booking = 1 Seat" to "1 Booking = N Seats" model. A family can select multiple seats in the same transaction, receiving a single Reference Code and paying a combined total fare, which accurately maps to real-world travel needs.
+3. **Waitlisting for Fully Booked Segments:**
+   * Implemented a waitlist feature for segments where a coach is fully booked. Passengers can leave their email to be notified if a seat becomes available due to a cancellation or expired hold.
+4. **Admin Dashboard (Occupancy & Revenue):**
+   * Created a dedicated dashboard for railway department staff to view coach-by-coach occupancy tables for any given date and analyze revenue reports grouped by travel date and coach class.
+5. **Clear Handling of Booking Conflicts:**
+   * In a high-concurrency scenario, if two users try to book the same overlapping segment simultaneously, the UI handles the 409 Conflict gracefully, warning the user that the seat was just taken and prompting them to choose another, rather than throwing a generic error.
+6. **Fare Logic Beyond Simple Distance:**
+   * Implemented base rates per km combined with coach class multipliers and peak/weekend multipliers (configurable via `.env`), reflecting realistic dynamic pricing models rather than hardcoded flat fees.
+7. **Advanced Security (JWT + MFA + Rate Limiting):**
    * Went beyond basic auth to include rolling refresh tokens, TOTP-based Multi-Factor Authentication (MFA), and sliding-window rate limiting per endpoint group to make this truly production-ready.
 
 ---
