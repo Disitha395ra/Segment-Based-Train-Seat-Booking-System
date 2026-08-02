@@ -1,0 +1,386 @@
+// =============================================================================
+// service.bal — Main HTTP service: all API resources for /api/v1
+// API versioning via URL prefix, response standardization throughout
+// =============================================================================
+
+import ballerina/http;
+import ballerina/time;
+import ballerina/log;
+import ballerina/task;
+import ballerina/cache;
+
+// ── Cache instances (Dependency Injection #19: injected via function params) ─
+final cache:Cache stationCache = new ({
+    capacity: 100,
+    evictionFactor: 0.2,
+    defaultMaxAge: 3600,    // 1 hour — stations rarely change
+    cleanupInterval: 600
+});
+
+final cache:Cache availabilityCache = new ({
+    capacity: 500,
+    evictionFactor: 0.25,
+    defaultMaxAge: 10,      // 10 seconds — acceptable staleness for availability
+    cleanupInterval: 30
+});
+
+// ── Listener with interceptor pipeline ───────────────────────────────────────
+listener http:Listener httpListener = new (9090, {
+    interceptors: [
+        new RateLimitInterceptor(),
+        new AuthInterceptor(),
+        new SecurityHeadersInterceptor(),
+        new ErrorInterceptor()
+    ],
+    httpVersion: http:HTTP_1_1
+});
+
+// ── Background: expire held bookings every 2 minutes ─────────────────────────
+function init() returns error? {
+    _ = check task:scheduleJobRecurrence(
+        new ExpiryJob(), {
+            intervalInMillis: 120000  // 2 minutes
+        }
+    );
+    log:printInfo("Train Booking API starting on port 9090");
+    log:printInfo("Environment: " + appEnv);
+}
+
+class ExpiryJob {
+    *task:Job;
+    public isolated function execute() {
+        error? err = dbExpireHeldBookings();
+        if err !is () {
+            log:printWarn("Booking expiry job failed", 'error = err);
+        }
+    }
+}
+
+// =============================================================================
+// HEALTH CHECK — /health
+// =============================================================================
+service /health on httpListener {
+    resource function get .() returns json|error {
+        time:Utc t0 = time:utcNow();
+        int|error dbLatency = dbPingCheck();
+
+        string dbStatus = dbLatency is int ? "up" : "down";
+        int?   dbMs     = dbLatency is int ? dbLatency : ();
+
+        string overall = dbStatus == "up" ? "healthy" : "degraded";
+        int statusCode = overall == "healthy" ? 200 : 503;
+
+        json body = {
+            "status":    overall,
+            "version":   "1.0.0",
+            "timestamp": time:utcToString(time:utcNow()),
+            "checks": {
+                "database": {"status": dbStatus, "latencyMs": dbMs},
+                "cache":    {"status": "up"}
+            }
+        };
+
+        http:Response resp = new;
+        resp.statusCode = statusCode;
+        resp.setJsonPayload(body);
+        return body;
+    }
+}
+
+// =============================================================================
+// API v1 — /api/v1
+// =============================================================================
+service /api/v1 on httpListener {
+
+    // ── CORS preflight ─────────────────────────────────────────────────────
+    resource function options [string... path](http:Request req) returns http:Response {
+        http:Response resp = new;
+        resp.setHeader("Access-Control-Allow-Origin",  corsAllowedOrigins);
+        resp.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+        resp.setHeader("Access-Control-Allow-Headers",
+                       "Content-Type, Authorization, X-Request-ID");
+        resp.setHeader("Access-Control-Max-Age", "86400");
+        resp.statusCode = 204;
+        return resp;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // AUTH ENDPOINTS
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // POST /api/v1/auth/register
+    resource function post auth/register(http:RequestContext ctx, http:Request req,
+            @http:Payload RegisterRequest body) returns json|error {
+        UserProfile profile = check registerUser(body);
+        http:Response resp = new;
+        resp.statusCode = 201;
+        return okResponse(profile.toJson());
+    }
+
+    // POST /api/v1/auth/login
+    resource function post auth/login(http:RequestContext ctx, http:Request req,
+            @http:Payload LoginRequest body) returns json|error {
+        TokenPair tokens = check loginUser(body, clientIp(req), clientUa(req));
+        return okResponse(tokens.toJson());
+    }
+
+    // POST /api/v1/auth/refresh
+    resource function post auth/refresh(http:RequestContext ctx, http:Request req,
+            @http:Payload RefreshRequest body) returns json|error {
+        TokenPair tokens = check refreshTokens(body.refreshToken, clientIp(req), clientUa(req));
+        return okResponse(tokens.toJson());
+    }
+
+    // POST /api/v1/auth/logout
+    resource function post auth/logout(http:RequestContext ctx, http:Request req,
+            @http:Payload RefreshRequest body) returns json|error {
+        string userId = ctxUserId(ctx);
+        check logoutUser(body.refreshToken, userId);
+        return okResponse("Logged out successfully");
+    }
+
+    // GET /api/v1/auth/me
+    resource function get auth/me(http:RequestContext ctx) returns json|error {
+        string userId = ctxUserId(ctx);
+        if userId == "" {
+            return error AuthError("Not authenticated");
+        }
+        UserRow user = check dbGetUserById(userId);
+        UserProfile profile = {
+            id:         user.id,
+            email:      user.email,
+            fullName:   user.fullName,
+            phone:      user.phone,
+            role:       user.role,
+            mfaEnabled: user.mfaEnabled,
+            createdAt:  time:utcToString(time:utcNow())
+        };
+        return okResponse(profile.toJson());
+    }
+
+    // POST /api/v1/auth/mfa/setup
+    resource function post auth/mfa/setup(http:RequestContext ctx) returns json|error {
+        string userId = ctxUserId(ctx);
+        if userId == "" {
+            return error AuthError("Not authenticated");
+        }
+        MfaSetupResponse setup = check setupMfa(userId);
+        return okResponse(setup.toJson());
+    }
+
+    // POST /api/v1/auth/mfa/verify
+    resource function post auth/mfa/verify(http:RequestContext ctx,
+            @http:Payload MfaVerifyRequest body) returns json|error {
+        string userId = ctxUserId(ctx);
+        if userId == "" {
+            return error AuthError("Not authenticated");
+        }
+        check verifyAndEnableMfa(userId, body.totpCode);
+        return okResponse("MFA enabled successfully");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // STATIONS
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // GET /api/v1/stations?page=1&limit=50
+    resource function get stations(http:RequestContext ctx,
+            int page = 1, int 'limit = 50) returns json|error {
+        // Cache check
+        string cacheKey = string `stations:${page}:${'limit}`;
+        any|cache:Error cached = stationCache.get(cacheKey);
+        if cached is json {
+            return cached;
+        }
+
+        StationRow[] stations = check dbGetStations(page, 'limit);
+        int total = check dbCountStations();
+        PaginationMeta pMeta = paginationMeta(page, 'limit, total);
+
+        json response = okResponse(stations.toJson(), pMeta);
+        cache:Error? putErr = stationCache.put(cacheKey, response);
+        if putErr !is () {
+            log:printWarn("Station cache put failed", 'error = putErr);
+        }
+        return response;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // TRAINS
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // GET /api/v1/trains
+    resource function get trains() returns json|error {
+        TrainRow[] trains = check dbGetTrains();
+        return okResponse(trains.toJson());
+    }
+
+    // GET /api/v1/trains/{trainId}/coaches
+    resource function get trains/[string trainId]/coaches() returns json|error {
+        CoachRow[] coaches = check dbGetCoachesByTrain(trainId);
+        return okResponse(coaches.toJson());
+    }
+
+    // GET /api/v1/trains/{trainId}/seats/availability?from=...&to=...&date=...
+    resource function get trains/[string trainId]/seats/availability(
+            http:Request req,
+            string 'from, string to, string date) returns json|error {
+
+        // Cache check
+        string cacheKey = string `avail:${trainId}:${'from}:${to}:${date}`;
+        any|cache:Error cached = availabilityCache.get(cacheKey);
+        if cached is json {
+            return cached;
+        }
+
+        SeatAvailability[] seats = check dbGetSeatAvailability(trainId, 'from, to, date);
+        json response = okResponse(seats.toJson());
+        _ = availabilityCache.put(cacheKey, response);
+        return response;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // FARE ESTIMATE
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // GET /api/v1/fare/estimate?from=...&to=...&coachClass=...&date=...
+    resource function get fare/estimate(
+            string 'from, string to, string coachClass, string date) returns json|error {
+        FareEstimateRequest req = {
+            fromStationId: 'from,
+            toStationId:   to,
+            coachClass:    coachClass,
+            travelDate:    date
+        };
+        FareBreakdown fare = check estimateFare(req);
+        return okResponse(fare.toJson());
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // BOOKINGS
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // POST /api/v1/bookings
+    resource function post bookings(http:RequestContext ctx, http:Request req,
+            @http:Payload CreateBookingRequest body) returns json|http:Response|error {
+        string userId = ctxUserId(ctx);
+        BookingRow booking = check createBooking(userId, body, clientIp(req), clientUa(req));
+        http:Response resp = new;
+        resp.statusCode = 201;
+        resp.setJsonPayload(okResponse(booking.toJson()));
+        return resp;
+    }
+
+    // GET /api/v1/bookings — list current user's bookings
+    resource function get bookings(http:RequestContext ctx, int page = 1, int 'limit = 20)
+            returns json|error {
+        string userId = ctxUserId(ctx);
+        if userId == "" {
+            return error AuthError("Not authenticated");
+        }
+        BookingRow[] bookings = check dbGetUserBookings(userId, page, 'limit);
+        int total = check dbCountUserBookings(userId);
+        return okResponse(bookings.toJson(), paginationMeta(page, 'limit, total));
+    }
+
+    // GET /api/v1/bookings/{id}
+    resource function get bookings/[string id](http:RequestContext ctx) returns json|error {
+        string userId = ctxUserId(ctx);
+        string role   = ctxRole(ctx);
+        BookingRow booking = check dbGetBookingById(id);
+        // Passengers can only view their own bookings
+        if role == "PASSENGER" && booking.userId != userId {
+            return error AuthError("Not authorized to view this booking");
+        }
+        return okResponse(booking.toJson());
+    }
+
+    // GET /api/v1/bookings/ref/{referenceCode}
+    resource function get bookings/ref/[string referenceCode]() returns json|error {
+        BookingRow booking = check dbGetBookingByReference(referenceCode);
+        return okResponse(booking.toJson());
+    }
+
+    // POST /api/v1/bookings/{id}/confirm
+    resource function post bookings/[string id]/confirm(http:RequestContext ctx)
+            returns json|error {
+        string userId = ctxUserId(ctx);
+        check confirmBooking(id, userId);
+        return okResponse("Booking confirmed");
+    }
+
+    // DELETE /api/v1/bookings/{id}
+    resource function delete bookings/[string id](http:RequestContext ctx, http:Request req)
+            returns json|error {
+        string userId = ctxUserId(ctx);
+        string role   = ctxRole(ctx);
+        check cancelBooking(id, userId, role);
+        return okResponse("Booking cancelled");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // WAITLIST
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // POST /api/v1/waitlist
+    resource function post waitlist(http:RequestContext ctx, http:Request req,
+            @http:Payload CreateWaitlistRequest body) returns json|http:Response|error {
+        string userId = ctxUserId(ctx);
+        WaitlistEntry entry = check dbCreateWaitlistEntry(userId, body);
+        http:Response resp = new;
+        resp.statusCode = 201;
+        resp.setJsonPayload(okResponse(entry.toJson()));
+        return resp;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // ADMIN ENDPOINTS (require ADMIN or SUPERADMIN role)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // GET /api/v1/admin/occupancy?date=YYYY-MM-DD
+    resource function get admin/occupancy(http:RequestContext ctx, string date)
+            returns json|error {
+        AuthError? roleCheck = requireRole(ctx, ["ADMIN", "SUPERADMIN"]);
+        if roleCheck !is () {
+            return roleCheck;
+        }
+        OccupancyRecord[] occ = check dbGetOccupancy(date);
+        return okResponse(occ.toJson());
+    }
+
+    // GET /api/v1/admin/revenue?from=YYYY-MM-DD&to=YYYY-MM-DD&page=1&limit=20
+    resource function get admin/revenue(http:RequestContext ctx,
+            string 'from, string to, int page = 1, int 'limit = 20)
+            returns json|error {
+        AuthError? roleCheck = requireRole(ctx, ["ADMIN", "SUPERADMIN"]);
+        if roleCheck !is () {
+            return roleCheck;
+        }
+        RevenueRecord[] revenue = check dbGetRevenue('from, to, page, 'limit);
+        return okResponse(revenue.toJson());
+    }
+
+    // GET /api/v1/admin/audit?entityType=BOOKING&entityId=...&page=1&limit=50
+    resource function get admin/audit(http:RequestContext ctx,
+            string? entityType = (), string? entityId = (),
+            int page = 1, int 'limit = 50)
+            returns json|error {
+        AuthError? roleCheck = requireRole(ctx, ["ADMIN", "SUPERADMIN"]);
+        if roleCheck !is () {
+            return roleCheck;
+        }
+        AuditLogRow[] logs = check dbGetAuditLogs(entityType, entityId, page, 'limit);
+        return okResponse(logs.toJson());
+    }
+
+    // GET /api/v1/docs — OpenAPI spec (redirect to Swagger UI hosted separately)
+    resource function get docs() returns http:Response {
+        http:Response resp = new;
+        resp.statusCode = 200;
+        resp.setJsonPayload({
+            "info": "OpenAPI 3.1 spec available at GET /api/v1/openapi.json",
+            "ui":   "Deploy swagger-ui pointing to /api/v1/openapi.json"
+        });
+        return resp;
+    }
+}
