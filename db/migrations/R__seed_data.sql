@@ -94,8 +94,8 @@ INSERT INTO coaches (id, train_id, coach_number, coach_class, total_seats) VALUE
   ('dddddddd-dddd-dddd-dddd-dddddddddddd', '11111111-1111-1111-1111-111111111111', 4, 'UNRESERVED', 80),
   ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', '11111111-1111-1111-1111-111111111111', 5, 'UNRESERVED', 80),
   ('ffffffff-ffff-ffff-ffff-ffffffffffff', '11111111-1111-1111-1111-111111111111', 6, 'UNRESERVED', 80),
-  ('gggggggg-gggg-gggg-gggg-gggggggggggg', '11111111-1111-1111-1111-111111111111', 7, 'UNRESERVED', 80),
-  ('hhhhhhhh-hhhh-hhhh-hhhh-hhhhhhhhhhhh', '11111111-1111-1111-1111-111111111111', 8, 'UNRESERVED', 80)
+  ('77777777-7777-7777-7777-777777777777', '11111111-1111-1111-1111-111111111111', 7, 'UNRESERVED', 80),
+  ('88888888-8888-8888-8888-888888888888', '11111111-1111-1111-1111-111111111111', 8, 'UNRESERVED', 80)
 ON CONFLICT (train_id, coach_number) DO NOTHING;
 
 -- =============================================================================
