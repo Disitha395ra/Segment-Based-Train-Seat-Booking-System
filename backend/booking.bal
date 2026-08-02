@@ -40,22 +40,43 @@ public isolated function createBooking(
         return error ValidationError("Travel date cannot be in the past");
     }
 
-    // 4. Calculate fare
-    SeatRow seatRow = check dbGetSeatForFare(req.seatId);
-    CoachRow coachRow = check dbGetCoachById(seatRow.coachId);
-    FareBreakdown fare = calculateFare(fromStation, toStation, coachRow.coachClass, travelCivil);
+    // 4. Validate seat limit
+    if req.seatIds.length() == 0 {
+        return error ValidationError("At least one seat must be selected");
+    }
+    if req.seatIds.length() > 6 {
+        return error ValidationError("Maximum 6 seats allowed per booking");
+    }
 
-    // 5. Generate unique reference code
+    // 5. Calculate total fare across all seats
+    decimal finalTotal = 0.0d;
+    json[] seatBreakdowns = [];
+
+    foreach string sId in req.seatIds {
+        SeatRow seatRow = check dbGetSeatForFare(sId);
+        CoachRow coachRow = check dbGetCoachById(seatRow.coachId);
+        FareBreakdown fare = calculateFare(fromStation, toStation, coachRow.coachClass, travelCivil);
+        finalTotal += fare.totalFare;
+        seatBreakdowns.push({"seatId": sId, "fare": fare.toJson()});
+    }
+
+    // 6. Generate unique reference code
     string referenceCode = generateReferenceCode();
 
-    // 6. Create booking (atomic, with SELECT FOR UPDATE)
-    log:printInfo(string `Creating booking: ${referenceCode} seat=${req.seatId} ` +
+    // 7. Create booking (atomic, with SELECT FOR UPDATE on all seats)
+    log:printInfo(string `Creating booking: ${referenceCode} seats=${req.seatIds.toString()} ` +
                   string `${fromStation.code}→${toStation.code} date=${req.travelDate}`);
+
+    json compositeBreakdown = {
+        "seatCount": req.seatIds.length(),
+        "totalFare": finalTotal,
+        "seats": seatBreakdowns
+    };
 
     BookingRow booking = check dbCreateBooking(
         userId, req, referenceCode,
         fromStation.orderIndex, toStation.orderIndex,
-        fare.totalFare, fare.toJson()
+        finalTotal, compositeBreakdown
     );
 
     // 7. Audit log (async-style — error logged but not fatal)
@@ -184,8 +205,8 @@ isolated function generateReferenceCode() returns string {
 
 // ── Validation ────────────────────────────────────────────────────────────────
 isolated function validateBookingRequest(CreateBookingRequest req) returns ValidationError? {
-    if req.seatId.trim() == "" {
-        return error ValidationError("Seat ID is required");
+    if req.seatIds.length() == 0 {
+        return error ValidationError("At least one seat must be selected");
     }
     if req.fromStationId.trim() == "" || req.toStationId.trim() == "" {
         return error ValidationError("Origin and destination stations are required");

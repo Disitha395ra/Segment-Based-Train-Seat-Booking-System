@@ -178,40 +178,46 @@ isolated function dbCreateBooking(
     string fareBreakdownStr = fareBreakdown.toString();
 
     transaction {
-        // Step 1: Lock the seat row to prevent concurrent modifications
-        sql:ExecutionResult|sql:Error lockResult = dbClient->execute(
-            `SELECT id FROM seats WHERE id = ${req.seatId}::uuid AND deleted_at IS NULL FOR UPDATE`
-        );
-        if lockResult is sql:Error {
-            fail error DatabaseError("Seat lock failed", lockResult);
+        // Step 1: Sort seat IDs to prevent deadlocks when locking multiple rows
+        string[] sortedSeatIds = req.seatIds.clone();
+        string[] sorted = sortedSeatIds.sort();
+
+        // Step 2: Lock and check overlap for ALL seats
+        foreach string sId in sorted {
+            // Lock the seat row to prevent concurrent modifications
+            sql:ExecutionResult|sql:Error lockResult = dbClient->execute(
+                `SELECT id FROM seats WHERE id = ${sId}::uuid AND deleted_at IS NULL FOR UPDATE`
+            );
+            if lockResult is sql:Error {
+                fail error DatabaseError("Seat lock failed for seat: " + sId, lockResult);
+            }
+
+            // Check for overlapping confirmed/held bookings
+            int|sql:Error overlapCount = dbClient->queryRow(
+                `SELECT COUNT(*) FROM seat_segment_bookings
+                  WHERE seat_id            = ${sId}::uuid
+                    AND travel_date        = ${req.travelDate}::date
+                    AND status             IN ('HELD','CONFIRMED')
+                    AND from_station_order < ${toOrder}
+                    AND to_station_order   > ${fromOrder}`
+            );
+            if overlapCount is sql:Error {
+                fail error DatabaseError("Overlap check failed for seat: " + sId, overlapCount);
+            }
+            if overlapCount > 0 {
+                fail error ConflictError("One or more seats already booked for this segment");
+            }
         }
 
-        // Step 2: Check for overlapping confirmed/held bookings
-        int|sql:Error overlapCount = dbClient->queryRow(
-            `SELECT COUNT(*) FROM seat_segment_bookings
-              WHERE seat_id            = ${req.seatId}::uuid
-                AND travel_date        = ${req.travelDate}::date
-                AND status             IN ('HELD','CONFIRMED')
-                AND from_station_order < ${toOrder}
-                AND to_station_order   > ${fromOrder}`
-        );
-        if overlapCount is sql:Error {
-            fail error DatabaseError("Overlap check failed", overlapCount);
-        }
-        if overlapCount > 0 {
-            fail error ConflictError("Seat already booked for this segment");
-        }
-
-        // Step 3: Insert booking record
+        // Step 3: Insert single booking record (seat_id removed from schema)
         sql:ExecutionResult|sql:Error bookingResult = dbClient->execute(
             `INSERT INTO bookings
-               (reference_code, user_id, seat_id, from_station_id, to_station_id,
+               (reference_code, user_id, from_station_id, to_station_id,
                 travel_date, fare_amount, fare_breakdown, status,
                 passenger_name, passenger_email, passenger_phone, held_until)
              VALUES
                (${referenceCode},
                 CASE WHEN ${userId} = '' THEN NULL ELSE ${userId}::uuid END,
-                ${req.seatId}::uuid,
                 ${req.fromStationId}::uuid,
                 ${req.toStationId}::uuid,
                 ${req.travelDate}::date,
@@ -235,16 +241,18 @@ isolated function dbCreateBooking(
             fail error DatabaseError("Failed to fetch new booking id", newBookingId);
         }
 
-        // Step 5: Insert seat segment booking
-        sql:ExecutionResult|sql:Error ssbResult = dbClient->execute(
-            `INSERT INTO seat_segment_bookings
-               (booking_id, seat_id, from_station_order, to_station_order, travel_date, status)
-             VALUES
-               (${newBookingId}::uuid, ${req.seatId}::uuid, ${fromOrder}, ${toOrder},
-                ${req.travelDate}::date, 'HELD')`
-        );
-        if ssbResult is sql:Error {
-            fail error DatabaseError("Segment booking insert failed", ssbResult);
+        // Step 5: Insert seat segment booking for ALL seats
+        foreach string sId in sorted {
+            sql:ExecutionResult|sql:Error ssbResult = dbClient->execute(
+                `INSERT INTO seat_segment_bookings
+                   (booking_id, seat_id, from_station_order, to_station_order, travel_date, status)
+                 VALUES
+                   (${newBookingId}::uuid, ${sId}::uuid, ${fromOrder}, ${toOrder},
+                    ${req.travelDate}::date, 'HELD')`
+            );
+            if ssbResult is sql:Error {
+                fail error DatabaseError("Segment booking insert failed for seat: " + sId, ssbResult);
+            }
         }
 
         check commit;
@@ -306,7 +314,7 @@ isolated function dbGetBookingByReference(string referenceCode)
         returns BookingRow|NotFoundError|DatabaseError {
     BookingRow|sql:Error result = dbClient->queryRow(
         `SELECT id::text, reference_code AS "referenceCode",
-                user_id::text AS "userId", seat_id::text AS "seatId",
+                user_id::text AS "userId",
                 from_station_id::text AS "fromStationId",
                 to_station_id::text AS "toStationId",
                 travel_date::text AS "travelDate",
@@ -334,7 +342,7 @@ isolated function dbGetBookingById(string bookingId)
         returns BookingRow|NotFoundError|DatabaseError {
     BookingRow|sql:Error result = dbClient->queryRow(
         `SELECT id::text, reference_code AS "referenceCode",
-                user_id::text AS "userId", seat_id::text AS "seatId",
+                user_id::text AS "userId",
                 from_station_id::text AS "fromStationId",
                 to_station_id::text AS "toStationId",
                 travel_date::text AS "travelDate",
@@ -363,7 +371,7 @@ isolated function dbGetUserBookings(string userId, int page, int 'limit)
     int offset = calcOffset(page, 'limit);
     stream<BookingRow, sql:Error?> resultStream = dbClient->query(
         `SELECT id::text, reference_code AS "referenceCode",
-                user_id::text AS "userId", seat_id::text AS "seatId",
+                user_id::text AS "userId",
                 from_station_id::text AS "fromStationId",
                 to_station_id::text AS "toStationId",
                 travel_date::text AS "travelDate",

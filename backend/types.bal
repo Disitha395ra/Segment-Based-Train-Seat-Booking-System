@@ -163,7 +163,7 @@ public type UserProfile record {|
 
 // ── Booking ───────────────────────────────────────────────────────────────────
 public type CreateBookingRequest record {|
-    string  seatId;
+    string[] seatIds;
     string  fromStationId;
     string  toStationId;
     string  travelDate;    // ISO date: YYYY-MM-DD
@@ -176,7 +176,6 @@ public type BookingRow record {|
     string  id;
     string  referenceCode;
     string? userId;
-    string  seatId;
     string  fromStationId;
     string  toStationId;
     string  travelDate;
