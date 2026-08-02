@@ -1,0 +1,27 @@
+# ─── Config.toml TEMPLATE ───────────────────────────────────────────────────
+# DO NOT commit the real Config.toml — it is in .gitignore
+# Copy this file to Config.toml and fill in real values,
+# OR let the Docker entrypoint generate it from environment variables.
+# ─────────────────────────────────────────────────────────────────────────────
+[trainlk.backend]
+dbHost                = "localhost"
+dbPort                = 5432
+dbName                = "trainbooking"
+dbUser                = "trainuser"
+dbPassword            = "CHANGE_ME"
+
+jwtSecret             = "CHANGE_ME_MIN_32_CHARS"
+jwtAccessExpirySeconds = 900
+jwtRefreshExpiryDays  = 7
+
+mfaEncryptionKey      = "CHANGE_ME_64_HEX_CHARS"
+
+fareBaseRatePerKm     = 2.50
+farePeakMultiplier    = 1.2
+
+rateLimitGeneral      = 100
+rateLimitBooking      = 20
+rateLimitAuth         = 10
+
+corsAllowedOrigins    = "http://localhost:3000"
+appEnv                = "development"

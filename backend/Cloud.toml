@@ -1,0 +1,8 @@
+[container.image]
+repository = "trainlk"
+name = "backend"
+tag = "latest"
+
+[[container.copy.files]]
+sourceFile = "./Config.toml"
+target = "/home/ballerina/"
