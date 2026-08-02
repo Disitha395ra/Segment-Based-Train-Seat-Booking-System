@@ -22,11 +22,15 @@ export default function BookingPage() {
   })
 
   useEffect(() => {
-    if (!state?.seat) { navigate('/', { replace: true }); return }
+    if (!state?.selectedSeats || state.selectedSeats.length === 0) { navigate('/', { replace: true }); return }
     fareApi.estimate(
       state.fromStationId, state.toStationId,
-      state.seat.coachClass, state.travelDate
-    ).then((res) => setFare(res.data))
+      state.selectedSeats[0].coachClass, state.travelDate
+    ).then((res) => {
+      const fd = { ...res.data };
+      fd.totalFare = Number(fd.totalFare) * state.selectedSeats.length;
+      setFare(fd);
+    })
       .catch(() => {})
       .finally(() => setFareLoad(false))
   }, [state, navigate])
@@ -39,7 +43,7 @@ export default function BookingPage() {
     setLoading(true)
     try {
       const res = await bookingsApi.create({
-        seatId:         state.seat.id,
+        seatIds:        state.seatIds,
         fromStationId:  state.fromStationId,
         toStationId:    state.toStationId,
         travelDate:     state.travelDate,
@@ -50,7 +54,7 @@ export default function BookingPage() {
       // Auto-confirm after booking creation
       await bookingsApi.confirm(res.data.id).catch(() => {})
       navigate('/confirmation', {
-        state: { booking: res.data, seat: state.seat,
+        state: { booking: res.data, selectedSeats: state.selectedSeats,
                  fromStationName: state.fromStationName,
                  toStationName:   state.toStationName, fare }
       })
@@ -65,9 +69,9 @@ export default function BookingPage() {
     }
   }
 
-  if (!state?.seat) return null
+  if (!state?.selectedSeats || state.selectedSeats.length === 0) return null
 
-  const { seat, fromStationName, toStationName, travelDate } = state
+  const { selectedSeats, fromStationName, toStationName, travelDate } = state
 
   return (
     <div className={styles.page}>
@@ -160,12 +164,14 @@ export default function BookingPage() {
                 <strong>{travelDate}</strong>
               </div>
               <div className={styles.summaryRow}>
-                <span>Coach</span>
-                <strong>Coach {seat.coachNumber} · {seat.coachClass.replace('_', ' ')}</strong>
+                <span>Class</span>
+                <strong>{selectedSeats[0].coachClass.replace('_', ' ')}</strong>
               </div>
               <div className={styles.summaryRow}>
-                <span>Seat</span>
-                <strong>{seat.seatNumber}</strong>
+                <span>Seats ({selectedSeats.length})</span>
+                <strong style={{ textAlign: 'right' }}>
+                  {selectedSeats.map(s => `C${s.coachNumber}-${s.seatNumber}`).join(', ')}
+                </strong>
               </div>
 
               <div className={styles.divider}></div>
@@ -193,6 +199,10 @@ export default function BookingPage() {
                         <span>{fare.peakMultiplier}×</span>
                       </div>
                     )}
+                    <div className={styles.fareRow}>
+                      <span>Seat count</span>
+                      <span>{selectedSeats.length}×</span>
+                    </div>
                   </div>
                   <div className={styles.fareTotal}>
                     <span>Total fare</span>

@@ -10,7 +10,7 @@ export default function ConfirmationPage() {
     return null
   }
 
-  const { booking, seat, fromStationName, toStationName, fare } = state
+  const { booking, selectedSeats, fromStationName, toStationName, fare } = state
 
   return (
     <div className={styles.page}>
@@ -43,12 +43,14 @@ export default function ConfirmationPage() {
               <strong>{booking.travelDate}</strong>
             </div>
             <div className={styles.detailRow}>
-              <span>Coach</span>
-              <strong>Coach {seat.coachNumber} · Seat {seat.seatNumber}</strong>
+              <span>Class</span>
+              <strong>{selectedSeats[0].coachClass.replace('_', ' ')}</strong>
             </div>
             <div className={styles.detailRow}>
-              <span>Class</span>
-              <strong>{seat.coachClass.replace('_', ' ')}</strong>
+              <span>Seats ({selectedSeats.length})</span>
+              <strong style={{ textAlign: 'right' }}>
+                {selectedSeats.map(s => `C${s.coachNumber}-${s.seatNumber}`).join(', ')}
+              </strong>
             </div>
             {fare && (
               <div className={styles.detailRow}>

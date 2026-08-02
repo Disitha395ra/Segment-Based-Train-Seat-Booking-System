@@ -15,9 +15,9 @@ export default function SeatsPage() {
   const [seats,         setSeats]         = useState([])
   const [fromStation,   setFromStation]   = useState(null)
   const [toStation,     setToStation]     = useState(null)
-  const [selectedSeat,  setSelectedSeat]  = useState(null)
+  const [selectedSeats, setSelectedSeats] = useState([])
   const [loading,       setLoading]       = useState(true)
-  const [conflictSeatId, setConflictSeatId] = useState(null) // real-time conflict detection
+  const [conflictSeatIds, setConflictSeatIds] = useState([]) // real-time conflict detection
   const [showWaitlist,  setShowWaitlist]  = useState(false)
   const [wlEmail,       setWlEmail]       = useState('')
   const [wlName,        setWlName]        = useState('')
@@ -33,14 +33,20 @@ export default function SeatsPage() {
       )
       const newSeats = res.data
 
-      // Conflict detection: if selected seat just became unavailable, warn the user
-      if (selectedSeat) {
-        const updatedSelectedSeat = newSeats.find((s) => s.id === selectedSeat.id)
-        if (updatedSelectedSeat && !updatedSelectedSeat.available &&
-            prevAvailRef.current[selectedSeat.id]) {
-          toast('Your selected seat just became unavailable — please choose another.', 'error', 6000)
-          setConflictSeatId(selectedSeat.id)
-          setSelectedSeat(null)
+      // Conflict detection: if any selected seat just became unavailable, warn the user
+      if (selectedSeats.length > 0) {
+        const newlyUnavailable = []
+        selectedSeats.forEach(selSeat => {
+          const updatedSeat = newSeats.find((s) => s.id === selSeat.id)
+          if (updatedSeat && !updatedSeat.available && prevAvailRef.current[selSeat.id]) {
+            newlyUnavailable.push(selSeat.id)
+          }
+        })
+
+        if (newlyUnavailable.length > 0) {
+          toast('One or more of your selected seats just became unavailable — please choose others.', 'error', 6000)
+          setConflictSeatIds(newlyUnavailable)
+          setSelectedSeats(prev => prev.filter(s => !newlyUnavailable.includes(s.id)))
         }
       }
 
@@ -55,7 +61,7 @@ export default function SeatsPage() {
     } finally {
       setLoading(false)
     }
-  }, [state, selectedSeat, toast])
+  }, [state, selectedSeats, toast])
 
   useEffect(() => {
     if (!state) {
@@ -75,19 +81,31 @@ export default function SeatsPage() {
   }, [state, navigate, fetchSeats])
 
   const handleSelectSeat = (seat) => {
-    setSelectedSeat(seat)
-    setConflictSeatId(null)
+    setConflictSeatIds([])
+    setSelectedSeats(prev => {
+      // Toggle off if already selected
+      if (prev.find(s => s.id === seat.id)) {
+        return prev.filter(s => s.id !== seat.id)
+      }
+      // Enforce max limit of 6
+      if (prev.length >= 6) {
+        toast('You can only select up to 6 seats at once.', 'warning')
+        return prev
+      }
+      return [...prev, seat]
+    })
   }
 
   const handleBook = () => {
-    if (!selectedSeat) return
-    navigate('/book', {
+    if (selectedSeats.length === 0) return
+    navigate('/booking', {
       state: {
         ...state,
-        seat: selectedSeat,
+        seatIds: selectedSeats.map(s => s.id),
+        selectedSeats: selectedSeats,
         fromStationName: fromStation?.name,
         toStationName:   toStation?.name,
-      }
+      },
     })
   }
 
@@ -139,16 +157,16 @@ export default function SeatsPage() {
           <div className={styles.mapSection}>
             <SeatMap
               seats={seats}
-              selectedSeatId={selectedSeat?.id}
+              selectedSeatIds={selectedSeats.map(s => s.id)}
               onSelectSeat={handleSelectSeat}
               isLoading={loading}
             />
 
             {/* Conflict warning */}
-            {conflictSeatId && (
+            {conflictSeatIds.length > 0 && (
               <div className={styles.conflictBanner}>
-                The seat you had selected was just booked by another passenger.
-                Please choose a different seat.
+                One or more seats you had selected were just booked by another passenger.
+                Please choose different seats.
               </div>
             )}
           </div>
@@ -174,12 +192,16 @@ export default function SeatsPage() {
                 </div>
               </div>
 
-              {selectedSeat ? (
+              {selectedSeats.length > 0 ? (
                 <div className={styles.selectedBlock}>
-                  <div className={styles.selectedBadge}>Seat selected</div>
+                  <div className={styles.selectedBadge}>{selectedSeats.length} seat(s) selected</div>
                   <div className={styles.selectedDetail}>
-                    <span>Coach {selectedSeat.coachNumber} · Seat {selectedSeat.seatNumber}</span>
-                    <span className={styles.coachClassTag}>{selectedSeat.coachClass.replace('_', ' ')}</span>
+                    {selectedSeats.map(s => (
+                      <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <span>Coach {s.coachNumber} · Seat {s.seatNumber}</span>
+                        <span className={styles.coachClassTag}>{s.coachClass.replace('_', ' ')}</span>
+                      </div>
+                    ))}
                   </div>
                   <button
                     className={styles.bookBtn}
@@ -190,7 +212,7 @@ export default function SeatsPage() {
                   </button>
                   <button
                     className={styles.clearBtn}
-                    onClick={() => setSelectedSeat(null)}
+                    onClick={() => setSelectedSeats([])}
                   >
                     Clear selection
                   </button>

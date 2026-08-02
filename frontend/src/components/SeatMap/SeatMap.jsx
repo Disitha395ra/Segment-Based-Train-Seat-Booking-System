@@ -12,7 +12,7 @@ const CLASS_COLORS = {
   THIRD_RESERVED:   '#4a7ec4',
 }
 
-export default function SeatMap({ coaches, seats, selectedSeatId, onSelectSeat, isLoading }) {
+export default function SeatMap({ coaches, seats, selectedSeatIds = [], onSelectSeat, isLoading }) {
   if (isLoading) {
     return (
       <div className={styles.loading}>
@@ -67,9 +67,9 @@ export default function SeatMap({ coaches, seats, selectedSeatId, onSelectSeat, 
           <span className={`${styles.legendDot} ${styles.dotSelected}`}></span>
           Selected
         </div>
-        {selectedSeatId && (
+        {selectedSeatIds.length > 0 && (
           <div className={styles.selectedInfo}>
-            Seat selected — fill in details below to confirm
+            {selectedSeatIds.length} seat(s) selected — max 6 allowed
           </div>
         )}
       </div>
@@ -95,7 +95,7 @@ export default function SeatMap({ coaches, seats, selectedSeatId, onSelectSeat, 
               {/* Seat grid — 2+2 arrangement */}
               <div className={styles.seatGrid}>
                 {coach.seats.map((seat) => {
-                  const isSelected  = seat.id === selectedSeatId
+                  const isSelected  = selectedSeatIds.includes(seat.id)
                   const isAvailable = seat.available
                   return (
                     <button
@@ -108,7 +108,7 @@ export default function SeatMap({ coaches, seats, selectedSeatId, onSelectSeat, 
                       onClick={() => isAvailable && onSelectSeat(seat)}
                       disabled={!isAvailable}
                       title={
-                        isSelected  ? `Seat ${seat.seatNumber} — Selected` :
+                        isSelected  ? `Seat ${seat.seatNumber} — Selected (Click to unselect)` :
                         isAvailable ? `Seat ${seat.seatNumber} — Click to select` :
                                       `Seat ${seat.seatNumber} — Booked`
                       }
