@@ -1,0 +1,218 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* ── Legend ─────────────────────────────────────────────────────────────────── */
+.legend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-neutral-50);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-600);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.legendDot {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-sm);
+  border: 2px solid transparent;
+  flex-shrink: 0;
+}
+
+.dotAvailable { background: var(--color-seat-available); border-color: var(--color-seat-avail-border); }
+.dotBooked    { background: var(--color-seat-booked);    border-color: var(--color-seat-booked-border); }
+.dotSelected  { background: var(--color-seat-selected);  border-color: var(--color-seat-sel-border); }
+
+.selectedInfo {
+  margin-left: auto;
+  font-size: var(--font-size-xs);
+  color: var(--color-primary-700);
+  font-weight: var(--font-weight-medium);
+}
+
+/* ── Train container ────────────────────────────────────────────────────────── */
+.trainContainer {
+  overflow-x: auto;
+  padding-bottom: var(--space-2);
+}
+
+.engineLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-400);
+  margin-bottom: var(--space-2);
+  padding: 0 var(--space-2);
+}
+
+.coaches {
+  display: flex;
+  gap: var(--space-3);
+  min-width: max-content;
+}
+
+/* ── Coach ──────────────────────────────────────────────────────────────────── */
+.coach {
+  background: var(--color-white);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
+  min-width: 160px;
+}
+
+.coachHeader {
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.coachNumber {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-white);
+}
+
+.coachClass {
+  font-size: var(--font-size-xs);
+  color: rgba(255,255,255,0.8);
+}
+
+/* ── Seat grid — 2 columns (window + aisle) × 2 sides ───────────────────────── */
+.seatGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-1);
+  padding: var(--space-3);
+}
+
+/* ── Individual seat ────────────────────────────────────────────────────────── */
+.seat {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  border: 2px solid transparent;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.seatAvailable {
+  background: var(--color-seat-available);
+  border-color: var(--color-seat-avail-border);
+  color: var(--color-success-700);
+}
+
+.seatAvailable:hover {
+  background: var(--color-seat-avail-hover);
+  transform: scale(1.08);
+  box-shadow: var(--shadow-sm);
+}
+
+.seatBooked {
+  background: var(--color-seat-booked);
+  border-color: var(--color-seat-booked-border);
+  color: var(--color-seat-booked-text);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.seatSelected {
+  background: var(--color-seat-selected);
+  border-color: var(--color-seat-sel-border);
+  color: var(--color-primary-700);
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
+  transform: scale(1.08);
+}
+
+/* Waitlist count badge */
+.waitlistDot {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 14px;
+  height: 14px;
+  background: var(--color-warning-600);
+  color: white;
+  border-radius: var(--radius-full);
+  font-size: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--font-weight-bold);
+}
+
+/* ── Coach stats ────────────────────────────────────────────────────────────── */
+.coachStats {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
+  border-top: 1px solid var(--color-neutral-100);
+  text-align: center;
+}
+
+/* ── Loading / empty ────────────────────────────────────────────────────────── */
+.loading {
+  padding: var(--space-8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.loadingBar {
+  width: 100%;
+  height: 4px;
+  background: var(--color-neutral-200);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  position: relative;
+}
+
+.loadingBar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--color-primary-500);
+  animation: loadingSlide 1.5s ease-in-out infinite;
+}
+
+@keyframes loadingSlide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+.loadingText {
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-500);
+}
+
+.empty {
+  text-align: center;
+  padding: var(--space-12);
+  color: var(--color-neutral-400);
+}
+
+/* ── Refresh note ───────────────────────────────────────────────────────────── */
+.refreshNote {
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-400);
+  text-align: center;
+}
