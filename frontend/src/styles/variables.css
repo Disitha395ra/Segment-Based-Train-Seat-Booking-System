@@ -1,25 +1,24 @@
 /* =============================================================================
    variables.css — Design tokens (CSS Custom Properties)
-   Natural, professional railway aesthetic — no AI/digital gimmicks
    ============================================================================= */
 
 :root {
-  /* ── Brand Colors ─────────────────────────────────────────────────────────── */
-  --color-primary-900:  #0d1f3e;
-  --color-primary-800:  #132b52;
-  --color-primary-700:  #1B3A6B;   /* main brand navy */
-  --color-primary-600:  #234d8a;
-  --color-primary-500:  #2b60a9;
-  --color-primary-400:  #4a7ec4;
-  --color-primary-100:  #dde8f6;
-  --color-primary-50:   #eef4fb;
+  /* ── Brand Colors (Sri Lanka Railways Maroon) ───────────────────────────── */
+  --color-primary-900:  #2d0707;
+  --color-primary-800:  #4a0b0b;
+  --color-primary-700:  #7B1818;   /* Main Maroon */
+  --color-primary-600:  #9b1e1e;
+  --color-primary-500:  #bc2525;
+  --color-primary-400:  #d94d4d;
+  --color-primary-100:  #f4d1d1;
+  --color-primary-50:   #faeaea;
 
-  --color-accent-700:   #8a5c06;
-  --color-accent-600:   #a36e08;
-  --color-accent-500:   #C8860A;   /* warm amber */
-  --color-accent-400:   #e09e1a;
-  --color-accent-100:   #fdefd3;
-  --color-accent-50:    #fef8ed;
+  --color-accent-700:   #7a6316;
+  --color-accent-600:   #9e811c;
+  --color-accent-500:   #C29F22;   /* Muted Gold */
+  --color-accent-400:   #d4b545;
+  --color-accent-100:   #f5f0db;
+  --color-accent-50:    #fbf9f2;
 
   /* ── Semantic Colors ──────────────────────────────────────────────────────── */
   --color-success-700:  #166534;
@@ -63,7 +62,7 @@
   --color-seat-held-border: #f59e0b;
 
   /* ── Typography ───────────────────────────────────────────────────────────── */
-  --font-family:      'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-family:      'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-size-xs:     0.75rem;    /* 12px */
   --font-size-sm:     0.875rem;   /* 14px */
   --font-size-base:   1rem;       /* 16px */
@@ -96,18 +95,19 @@
   --space-20:  5rem;
 
   /* ── Border Radius ────────────────────────────────────────────────────────── */
-  --radius-sm:   4px;
-  --radius-md:   8px;
-  --radius-lg:   12px;
-  --radius-xl:   16px;
+  /* ── Border Radius (Sharper for Enterprise look) ───────────────────────── */
+  --radius-sm:   2px;
+  --radius-md:   4px;
+  --radius-lg:   6px;
+  --radius-xl:   8px;
   --radius-full: 9999px;
 
-  /* ── Shadows ──────────────────────────────────────────────────────────────── */
-  --shadow-xs:  0 1px 2px rgba(0,0,0,0.05);
-  --shadow-sm:  0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
-  --shadow-md:  0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06);
-  --shadow-lg:  0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05);
-  --shadow-xl:  0 20px 25px rgba(0,0,0,0.1), 0 10px 10px rgba(0,0,0,0.04);
+  /* ── Shadows (Flatter and more rigid) ──────────────────────────────────── */
+  --shadow-xs:  0 1px 1px rgba(0,0,0,0.1);
+  --shadow-sm:  0 1px 2px rgba(0,0,0,0.15);
+  --shadow-md:  0 2px 4px rgba(0,0,0,0.15);
+  --shadow-lg:  0 4px 8px rgba(0,0,0,0.15);
+  --shadow-xl:  0 8px 16px rgba(0,0,0,0.15);
 
   /* ── Transitions ──────────────────────────────────────────────────────────── */
   --transition-fast:   150ms ease;
