@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { bookingsApi } from '../api/endpoints'
 import { useToast } from '../components/common/Toast/ToastContext'
+import { isValidName, isValidExpiryDate } from '../utils/validation'
 import styles from './PaymentPage.module.css'
 
 export default function PaymentPage() {
@@ -47,17 +48,17 @@ export default function PaymentPage() {
     e.preventDefault()
 
     // Basic validation
-    if (form.cardNumber.replace(/\s/g, '').length !== 16) {
-      return toast('Invalid card number', 'error')
+    if (!isValidName(form.cardholderName)) {
+      return toast('Please enter a valid cardholder name', 'warning')
     }
-    if (form.expiryDate.length !== 5) {
-      return toast('Invalid expiry date', 'error')
+    if (form.cardNumber.replace(/\s/g, '').length !== 16) {
+      return toast('Invalid card number (must be 16 digits)', 'warning')
+    }
+    if (!isValidExpiryDate(form.expiryDate)) {
+      return toast('Invalid or expired date (MM/YY)', 'warning')
     }
     if (form.cvc.length !== 3) {
-      return toast('Invalid CVC', 'error')
-    }
-    if (!form.cardholderName.trim()) {
-      return toast('Cardholder name is required', 'error')
+      return toast('Invalid CVC (must be 3 digits)', 'warning')
     }
 
     setLoading(true)

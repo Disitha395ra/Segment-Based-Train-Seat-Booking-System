@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { trainsApi, stationsApi, waitlistApi } from '../api/endpoints'
 import SeatMap from '../components/SeatMap/SeatMap'
+import { isValidEmail, isValidName } from '../utils/validation'
 import { useToast } from '../components/common/Toast/ToastContext'
 import styles from './SeatsPage.module.css'
 
@@ -111,7 +112,14 @@ export default function SeatsPage() {
 
   const handleJoinWaitlist = async (e) => {
     e.preventDefault()
-    if (!wlEmail || !wlName) return
+    
+    if (!isValidName(wlName)) {
+      return toast('Please enter a valid name', 'warning')
+    }
+    if (!isValidEmail(wlEmail)) {
+      return toast('Please enter a valid email address', 'warning')
+    }
+
     try {
       await waitlistApi.join({
         seatId:          selectedSeat?.id ?? seats[0]?.id,

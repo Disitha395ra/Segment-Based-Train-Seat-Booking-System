@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/common/Toast/ToastContext'
+import { isValidEmail, isValidName, isValidPassword, isValidPhone } from '../utils/validation'
 import styles from './AuthPage.module.css'
 
 export default function RegisterPage() {
@@ -15,10 +16,20 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (form.password.length < 8) {
-      toast('Password must be at least 8 characters', 'warning')
-      return
+    
+    if (!isValidName(form.fullName)) {
+      return toast('Please enter a valid full name (min 2 chars)', 'warning')
     }
+    if (!isValidEmail(form.email)) {
+      return toast('Please enter a valid email address', 'warning')
+    }
+    if (!isValidPassword(form.password)) {
+      return toast('Password must be at least 8 chars, contain an uppercase, a lowercase, and a number', 'warning')
+    }
+    if (form.phone && !isValidPhone(form.phone)) {
+      return toast('Please enter a valid phone number (e.g. 07XXXXXXXX)', 'warning')
+    }
+
     setLoading(true)
     try {
       await register({ fullName: form.fullName, email: form.email,

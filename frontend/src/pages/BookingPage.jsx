@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { bookingsApi, fareApi } from '../api/endpoints'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/common/Toast/ToastContext'
+import { isValidEmail, isValidName, isValidPhone } from '../utils/validation'
 import styles from './BookingPage.module.css'
 
 export default function BookingPage() {
@@ -40,6 +41,17 @@ export default function BookingPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    if (!isValidName(form.passengerName)) {
+      return toast('Please enter a valid passenger name (min 2 chars)', 'warning')
+    }
+    if (!isValidEmail(form.passengerEmail)) {
+      return toast('Please enter a valid email address', 'warning')
+    }
+    if (form.passengerPhone && !isValidPhone(form.passengerPhone)) {
+      return toast('Please enter a valid phone number', 'warning')
+    }
+
     setLoading(true)
     try {
       const res = await bookingsApi.create({

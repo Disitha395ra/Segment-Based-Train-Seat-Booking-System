@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/common/Toast/ToastContext'
+import { isValidEmail } from '../utils/validation'
 import styles from './AuthPage.module.css'
 
 export default function LoginPage() {
@@ -16,6 +17,20 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    if (!needMfa) {
+      if (!isValidEmail(form.email)) {
+        return toast('Please enter a valid email address', 'warning')
+      }
+      if (!form.password) {
+        return toast('Please enter your password', 'warning')
+      }
+    } else {
+      if (form.totpCode.length !== 6) {
+        return toast('Please enter the 6-digit code', 'warning')
+      }
+    }
+
     setLoading(true)
     try {
       const result = await login({
