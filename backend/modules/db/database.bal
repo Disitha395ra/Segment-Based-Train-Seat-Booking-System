@@ -187,8 +187,8 @@ public isolated function dbCreateBooking(
         // Step 2: Lock and check overlap for ALL seats
         foreach string sId in sorted {
             // Lock the seat row to prevent concurrent modifications
-            sql:ExecutionResult|sql:Error lockResult = dbClient->execute(
-                `SELECT id FROM seats WHERE id = ${sId}::uuid AND deleted_at IS NULL FOR UPDATE`
+            string|sql:Error lockResult = dbClient->queryRow(
+                `SELECT id::text FROM seats WHERE id = ${sId}::uuid AND deleted_at IS NULL FOR UPDATE`
             );
             if lockResult is sql:Error {
                 fail error models:DatabaseError("Seat lock failed for seat: " + sId, lockResult);
