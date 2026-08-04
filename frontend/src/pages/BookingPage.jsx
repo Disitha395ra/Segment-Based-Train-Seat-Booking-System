@@ -51,9 +51,8 @@ export default function BookingPage() {
         passengerEmail: form.passengerEmail.trim(),
         passengerPhone: form.passengerPhone.trim() || undefined,
       })
-      // Auto-confirm after booking creation
-      await bookingsApi.confirm(res.data.id).catch(() => {})
-      navigate('/confirmation', {
+      toast('Seat reserved successfully. Please complete the payment.', 'success')
+      navigate('/payment', {
         state: { booking: res.data, selectedSeats: state.selectedSeats,
                  fromStationName: state.fromStationName,
                  toStationName:   state.toStationName, fare }

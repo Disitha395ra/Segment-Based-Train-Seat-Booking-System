@@ -6,6 +6,7 @@ import HomePage from './pages/HomePage'
 import SeatsPage from './pages/SeatsPage'
 import BookingPage from './pages/BookingPage'
 import ConfirmationPage from './pages/ConfirmationPage'
+import PaymentPage from './pages/PaymentPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import MfaPage from './pages/MfaPage'
@@ -30,6 +31,7 @@ export default function App() {
               <Route index element={<HomePage />} />
               <Route path="seats"        element={<SeatsPage />} />
               <Route path="book"         element={<BookingPage />} />
+              <Route path="payment"      element={<PaymentPage />} />
               <Route path="confirmation" element={<ConfirmationPage />} />
               <Route path="login"        element={<LoginPage />} />
               <Route path="register"     element={<RegisterPage />} />
