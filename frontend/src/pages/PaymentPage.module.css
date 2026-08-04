@@ -138,6 +138,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  gap: 0.5rem;
   height: 52px;
 }
 
@@ -149,6 +150,12 @@
 .payBtn:disabled {
   background-color: var(--color-text-light);
   cursor: not-allowed;
+}
+
+.loadingBtn {
+  background-color: var(--color-success-600) !important;
+  color: white !important;
+  cursor: wait !important;
 }
 
 .secureNote {

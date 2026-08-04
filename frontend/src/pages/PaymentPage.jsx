@@ -115,7 +115,6 @@ export default function PaymentPage() {
                 value={form.cardholderName}
                 onChange={handleChange}
                 placeholder="Name on card"
-                required
                 disabled={loading}
               />
             </div>
@@ -130,7 +129,6 @@ export default function PaymentPage() {
                 value={form.cardNumber}
                 onChange={handleChange}
                 placeholder="0000 0000 0000 0000"
-                required
                 disabled={loading}
               />
             </div>
@@ -146,7 +144,6 @@ export default function PaymentPage() {
                   value={form.expiryDate}
                   onChange={handleChange}
                   placeholder="MM/YY"
-                  required
                   disabled={loading}
                 />
               </div>
@@ -161,15 +158,17 @@ export default function PaymentPage() {
                   value={form.cvc}
                   onChange={handleChange}
                   placeholder="123"
-                  required
                   disabled={loading}
                 />
               </div>
             </div>
 
-            <button type="submit" className={styles.payBtn} disabled={loading}>
+            <button type="submit" className={`${styles.payBtn} ${loading ? styles.loadingBtn : ''}`} disabled={loading}>
               {loading ? (
-                <span className={styles.spinner}></span>
+                <>
+                  <span className={styles.spinner}></span>
+                  Processing Payment...
+                </>
               ) : (
                 `Pay LKR ${Number(fare?.totalFare || 0).toFixed(2)}`
               )}
