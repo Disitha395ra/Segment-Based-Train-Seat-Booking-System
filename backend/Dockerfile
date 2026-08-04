@@ -12,6 +12,7 @@ WORKDIR /home/ballerina/app
 # Copy project files
 COPY Ballerina.toml Cloud.toml ./
 COPY *.bal ./
+COPY modules/ ./modules/
 
 # Build the fat JAR
 RUN bal build

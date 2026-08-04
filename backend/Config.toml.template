@@ -3,7 +3,7 @@
 # Copy this file to Config.toml and fill in real values,
 # OR let the Docker entrypoint generate it from environment variables.
 # ─────────────────────────────────────────────────────────────────────────────
-[trainlk.backend]
+[trainlk.backend.config]
 dbHost                = "localhost"
 dbPort                = 5432
 dbName                = "trainbooking"

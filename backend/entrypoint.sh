@@ -8,7 +8,7 @@ set -e
 CONFIG_FILE="/home/ballerina/Config.toml"
 
 cat > "$CONFIG_FILE" << TOML
-[trainlk.backend]
+[trainlk.backend.config]
 dbHost                 = "${POSTGRES_HOST:-db}"
 dbPort                 = ${POSTGRES_PORT:-5432}
 dbName                 = "${POSTGRES_DB:-trainbooking}"
