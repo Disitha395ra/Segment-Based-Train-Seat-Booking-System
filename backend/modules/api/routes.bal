@@ -3,6 +3,11 @@
 // API versioning via URL prefix, response standardization throughout
 // =============================================================================
 
+import trainlk/backend.models;
+import trainlk/backend.db;
+import trainlk/backend.config;
+import trainlk/backend.controllers;
+import trainlk/backend.utils;
 import ballerina/http;
 import ballerina/time;
 import ballerina/log;
@@ -33,13 +38,13 @@ listener http:Listener httpListener = new (9090, {
 function init() returns error? {
     _ = check task:scheduleJobRecurByFrequency(new ExpiryJob(), 120);
     log:printInfo("Train Booking API starting on port 9090");
-    log:printInfo("Environment: " + appEnv);
+    log:printInfo("Environment: " + config:appEnv);
 }
 
 class ExpiryJob {
     *task:Job;
     public isolated function execute() {
-        error? err = dbExpireHeldBookings();
+        error? err = db:dbExpireHeldBookings();
         if err !is () {
             log:printWarn("Booking expiry job failed", 'error = err);
         }
@@ -52,7 +57,7 @@ class ExpiryJob {
 service /health on httpListener {
     resource function get .() returns json|error {
 
-        int|error dbLatency = dbPingCheck();
+        int|error dbLatency = db:dbPingCheck();
 
         string dbStatus = dbLatency is int ? "up" : "down";
         int?   dbMs     = dbLatency is int ? dbLatency : ();
@@ -82,7 +87,7 @@ service /health on httpListener {
 // =============================================================================
 @http:ServiceConfig {
     cors: {
-        allowOrigins: [corsAllowedOrigins],
+        allowOrigins: [config:corsAllowedOrigins],
         allowCredentials: true,
         allowHeaders: ["Authorization", "Content-Type", "X-Request-ID"],
         allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
@@ -90,12 +95,12 @@ service /health on httpListener {
 }
 service http:InterceptableService /api/v1 on httpListener {
 
-    public function createInterceptors() returns [RateLimitInterceptor, AuthInterceptor, SecurityHeadersInterceptor, ErrorInterceptor] {
+    public function createInterceptors() returns [utils:RateLimitInterceptor, utils:AuthInterceptor, utils:SecurityHeadersInterceptor, utils:ErrorInterceptor] {
         return [
-            new RateLimitInterceptor(),
-            new AuthInterceptor(),
-            new SecurityHeadersInterceptor(),
-            new ErrorInterceptor()
+            new utils:RateLimitInterceptor(),
+            new utils:AuthInterceptor(),
+            new utils:SecurityHeadersInterceptor(),
+            new utils:ErrorInterceptor()
         ];
     }
 
@@ -105,43 +110,43 @@ service http:InterceptableService /api/v1 on httpListener {
 
     // POST /api/v1/auth/register
     resource function post auth/register(http:RequestContext ctx, http:Request req,
-            @http:Payload RegisterRequest body) returns json|error {
-        UserProfile profile = check registerUser(body);
+            @http:Payload models:RegisterRequest body) returns json|error {
+        models:UserProfile profile = check controllers:registerUser(body);
         http:Response resp = new;
         resp.statusCode = 201;
-        return okResponse(profile.toJson());
+        return utils:okResponse(profile.toJson());
     }
 
     // POST /api/v1/auth/login
     resource function post auth/login(http:RequestContext ctx, http:Request req,
-            @http:Payload LoginRequest body) returns json|error {
-        TokenPair tokens = check loginUser(body, clientIp(req), clientUa(req));
-        return okResponse(tokens.toJson());
+            @http:Payload models:LoginRequest body) returns json|error {
+        models:TokenPair tokens = check controllers:loginUser(body, utils:clientIp(req), utils:clientUa(req));
+        return utils:okResponse(tokens.toJson());
     }
 
     // POST /api/v1/auth/refresh
     resource function post auth/refresh(http:RequestContext ctx, http:Request req,
-            @http:Payload RefreshRequest body) returns json|error {
-        TokenPair tokens = check refreshTokens(body.refreshToken, clientIp(req), clientUa(req));
-        return okResponse(tokens.toJson());
+            @http:Payload models:RefreshRequest body) returns json|error {
+        models:TokenPair tokens = check controllers:refreshTokens(body.refreshToken, utils:clientIp(req), utils:clientUa(req));
+        return utils:okResponse(tokens.toJson());
     }
 
     // POST /api/v1/auth/logout
     resource function post auth/logout(http:RequestContext ctx, http:Request req,
-            @http:Payload RefreshRequest body) returns json|error {
-        string userId = ctxUserId(ctx);
-        check logoutUser(body.refreshToken, userId);
-        return okResponse("Logged out successfully");
+            @http:Payload models:RefreshRequest body) returns json|error {
+        string userId = utils:ctxUserId(ctx);
+        check controllers:logoutUser(body.refreshToken, userId);
+        return utils:okResponse("Logged out successfully");
     }
 
     // GET /api/v1/auth/me
     resource function get auth/me(http:RequestContext ctx) returns json|error {
-        string userId = ctxUserId(ctx);
+        string userId = utils:ctxUserId(ctx);
         if userId == "" {
-            return error AuthError("Not authenticated");
+            return error models:AuthError("Not authenticated");
         }
-        UserRow user = check dbGetUserById(userId);
-        UserProfile profile = {
+        models:UserRow user = check db:dbGetUserById(userId);
+        models:UserProfile profile = {
             id:         user.id,
             email:      user.email,
             fullName:   user.fullName,
@@ -150,28 +155,28 @@ service http:InterceptableService /api/v1 on httpListener {
             mfaEnabled: user.mfaEnabled,
             createdAt:  time:utcToString(time:utcNow())
         };
-        return okResponse(profile.toJson());
+        return utils:okResponse(profile.toJson());
     }
 
     // POST /api/v1/auth/mfa/setup
     resource function post auth/mfa/setup(http:RequestContext ctx) returns json|error {
-        string userId = ctxUserId(ctx);
+        string userId = utils:ctxUserId(ctx);
         if userId == "" {
-            return error AuthError("Not authenticated");
+            return error models:AuthError("Not authenticated");
         }
-        MfaSetupResponse setup = check setupMfa(userId);
-        return okResponse(setup.toJson());
+        models:MfaSetupResponse setup = check controllers:setupMfa(userId);
+        return utils:okResponse(setup.toJson());
     }
 
     // POST /api/v1/auth/mfa/verify
     resource function post auth/mfa/verify(http:RequestContext ctx,
-            @http:Payload MfaVerifyRequest body) returns json|error {
-        string userId = ctxUserId(ctx);
+            @http:Payload models:MfaVerifyRequest body) returns json|error {
+        string userId = utils:ctxUserId(ctx);
         if userId == "" {
-            return error AuthError("Not authenticated");
+            return error models:AuthError("Not authenticated");
         }
-        check verifyAndEnableMfa(userId, body.totpCode);
-        return okResponse("MFA enabled successfully");
+        check controllers:verifyAndEnableMfa(userId, body.totpCode);
+        return utils:okResponse("MFA enabled successfully");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -188,11 +193,11 @@ service http:InterceptableService /api/v1 on httpListener {
             return cached;
         }
 
-        StationRow[] stations = check dbGetStations(page, 'limit);
-        int total = check dbCountStations();
-        PaginationMeta pMeta = paginationMeta(page, 'limit, total);
+        models:StationRow[] stations = check db:dbGetStations(page, 'limit);
+        int total = check db:dbCountStations();
+        models:PaginationMeta pMeta = utils:paginationMeta(page, 'limit, total);
 
-        json response = okResponse(stations.toJson(), pMeta);
+        json response = utils:okResponse(stations.toJson(), pMeta);
         cache:Error? putErr = stationCache.put(cacheKey, response);
         if putErr !is () {
             log:printWarn("Station cache put failed", 'error = putErr);
@@ -206,14 +211,14 @@ service http:InterceptableService /api/v1 on httpListener {
 
     // GET /api/v1/trains
     resource function get trains() returns json|error {
-        TrainRow[] trains = check dbGetTrains();
-        return okResponse(trains.toJson());
+        models:TrainRow[] trains = check db:dbGetTrains();
+        return utils:okResponse(trains.toJson());
     }
 
     // GET /api/v1/trains/{trainId}/coaches
     resource function get trains/[string trainId]/coaches() returns json|error {
-        CoachRow[] coaches = check dbGetCoachesByTrain(trainId);
-        return okResponse(coaches.toJson());
+        models:CoachRow[] coaches = check db:dbGetCoachesByTrain(trainId);
+        return utils:okResponse(coaches.toJson());
     }
 
     // GET /api/v1/trains/{trainId}/seats/availability?from=...&to=...&date=...
@@ -228,8 +233,8 @@ service http:InterceptableService /api/v1 on httpListener {
             return cached;
         }
 
-        SeatAvailability[] seats = check dbGetSeatAvailability(trainId, 'from, to, date);
-        json response = okResponse(seats.toJson());
+        models:SeatAvailability[] seats = check db:dbGetSeatAvailability(trainId, 'from, to, date);
+        json response = utils:okResponse(seats.toJson());
         check availabilityCache.put(cacheKey, response);
         return response;
     }
@@ -241,14 +246,14 @@ service http:InterceptableService /api/v1 on httpListener {
     // GET /api/v1/fare/estimate?from=...&to=...&coachClass=...&date=...
     resource function get fare/estimate(
             string 'from, string to, string coachClass, string date) returns json|error {
-        FareEstimateRequest req = {
+        models:FareEstimateRequest req = {
             fromStationId: 'from,
             toStationId:   to,
             coachClass:    coachClass,
             travelDate:    date
         };
-        FareBreakdown fare = check estimateFare(req);
-        return okResponse(fare.toJson());
+        models:FareBreakdown fare = check controllers:estimateFare(req);
+        return utils:okResponse(fare.toJson());
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -257,60 +262,60 @@ service http:InterceptableService /api/v1 on httpListener {
 
     // POST /api/v1/bookings
     resource function post bookings(http:RequestContext ctx, http:Request req,
-            @http:Payload CreateBookingRequest body) returns json|http:Response|error {
-        string userId = ctxUserId(ctx);
-        BookingRow booking = check createBooking(userId, body, clientIp(req), clientUa(req));
+            @http:Payload models:CreateBookingRequest body) returns json|http:Response|error {
+        string userId = utils:ctxUserId(ctx);
+        models:BookingRow booking = check controllers:createBooking(userId, body, utils:clientIp(req), utils:clientUa(req));
         http:Response resp = new;
         resp.statusCode = 201;
-        resp.setJsonPayload(okResponse(booking.toJson()));
+        resp.setJsonPayload(utils:okResponse(booking.toJson()));
         return resp;
     }
 
     // GET /api/v1/bookings — list current user's bookings
     resource function get bookings(http:RequestContext ctx, int page = 1, int 'limit = 20)
             returns json|error {
-        string userId = ctxUserId(ctx);
+        string userId = utils:ctxUserId(ctx);
         if userId == "" {
-            return error AuthError("Not authenticated");
+            return error models:AuthError("Not authenticated");
         }
-        BookingRow[] bookings = check dbGetUserBookings(userId, page, 'limit);
-        int total = check dbCountUserBookings(userId);
-        return okResponse(bookings.toJson(), paginationMeta(page, 'limit, total));
+        models:BookingRow[] bookings = check db:dbGetUserBookings(userId, page, 'limit);
+        int total = check db:dbCountUserBookings(userId);
+        return utils:okResponse(bookings.toJson(), utils:paginationMeta(page, 'limit, total));
     }
 
     // GET /api/v1/bookings/{id}
     resource function get bookings/[string id](http:RequestContext ctx) returns json|error {
-        string userId = ctxUserId(ctx);
-        string role   = ctxRole(ctx);
-        BookingRow booking = check dbGetBookingById(id);
+        string userId = utils:ctxUserId(ctx);
+        string role   = utils:ctxRole(ctx);
+        models:BookingRow booking = check db:dbGetBookingById(id);
         // Passengers can only view their own bookings
         if role == "PASSENGER" && booking.userId != userId {
-            return error AuthError("Not authorized to view this booking");
+            return error models:AuthError("Not authorized to view this booking");
         }
-        return okResponse(booking.toJson());
+        return utils:okResponse(booking.toJson());
     }
 
     // GET /api/v1/bookings/ref/{referenceCode}
     resource function get bookings/ref/[string referenceCode]() returns json|error {
-        BookingRow booking = check dbGetBookingByReference(referenceCode);
-        return okResponse(booking.toJson());
+        models:BookingRow booking = check db:dbGetBookingByReference(referenceCode);
+        return utils:okResponse(booking.toJson());
     }
 
     // POST /api/v1/bookings/{id}/confirm
     resource function post bookings/[string id]/confirm(http:RequestContext ctx)
             returns json|error {
-        string userId = ctxUserId(ctx);
-        check confirmBooking(id, userId);
-        return okResponse("Booking confirmed");
+        string userId = utils:ctxUserId(ctx);
+        check controllers:confirmBooking(id, userId);
+        return utils:okResponse("Booking confirmed");
     }
 
     // DELETE /api/v1/bookings/{id}
     resource function delete bookings/[string id](http:RequestContext ctx, http:Request req)
             returns json|error {
-        string userId = ctxUserId(ctx);
-        string role   = ctxRole(ctx);
-        check cancelBooking(id, userId, role);
-        return okResponse("Booking cancelled");
+        string userId = utils:ctxUserId(ctx);
+        string role   = utils:ctxRole(ctx);
+        check controllers:cancelBooking(id, userId, role);
+        return utils:okResponse("Booking cancelled");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -319,12 +324,12 @@ service http:InterceptableService /api/v1 on httpListener {
 
     // POST /api/v1/waitlist
     resource function post waitlist(http:RequestContext ctx, http:Request req,
-            @http:Payload CreateWaitlistRequest body) returns json|http:Response|error {
-        string userId = ctxUserId(ctx);
-        WaitlistEntry entry = check dbCreateWaitlistEntry(userId, body);
+            @http:Payload models:CreateWaitlistRequest body) returns json|http:Response|error {
+        string userId = utils:ctxUserId(ctx);
+        models:WaitlistEntry entry = check db:dbCreateWaitlistEntry(userId, body);
         http:Response resp = new;
         resp.statusCode = 201;
-        resp.setJsonPayload(okResponse(entry.toJson()));
+        resp.setJsonPayload(utils:okResponse(entry.toJson()));
         return resp;
     }
 
@@ -335,24 +340,24 @@ service http:InterceptableService /api/v1 on httpListener {
     // GET /api/v1/admin/occupancy?date=YYYY-MM-DD
     resource function get admin/occupancy(http:RequestContext ctx, string date)
             returns json|error {
-        AuthError? roleCheck = requireRole(ctx, ["ADMIN", "SUPERADMIN"]);
+        models:AuthError? roleCheck = utils:requireRole(ctx, ["ADMIN", "SUPERADMIN"]);
         if roleCheck !is () {
             return roleCheck;
         }
-        OccupancyRecord[] occ = check dbGetOccupancy(date);
-        return okResponse(occ.toJson());
+        models:OccupancyRecord[] occ = check db:dbGetOccupancy(date);
+        return utils:okResponse(occ.toJson());
     }
 
     // GET /api/v1/admin/revenue?from=YYYY-MM-DD&to=YYYY-MM-DD&page=1&limit=20
     resource function get admin/revenue(http:RequestContext ctx,
             string 'from, string to, int page = 1, int 'limit = 20)
             returns json|error {
-        AuthError? roleCheck = requireRole(ctx, ["ADMIN", "SUPERADMIN"]);
+        models:AuthError? roleCheck = utils:requireRole(ctx, ["ADMIN", "SUPERADMIN"]);
         if roleCheck !is () {
             return roleCheck;
         }
-        RevenueRecord[] revenue = check dbGetRevenue('from, to, page, 'limit);
-        return okResponse(revenue.toJson());
+        models:RevenueRecord[] revenue = check db:dbGetRevenue('from, to, page, 'limit);
+        return utils:okResponse(revenue.toJson());
     }
 
     // GET /api/v1/admin/audit?entityType=BOOKING&entityId=...&page=1&limit=50
@@ -360,12 +365,12 @@ service http:InterceptableService /api/v1 on httpListener {
             string? entityType = (), string? entityId = (),
             int page = 1, int 'limit = 50)
             returns json|error {
-        AuthError? roleCheck = requireRole(ctx, ["ADMIN", "SUPERADMIN"]);
+        models:AuthError? roleCheck = utils:requireRole(ctx, ["ADMIN", "SUPERADMIN"]);
         if roleCheck !is () {
             return roleCheck;
         }
-        AuditLogRow[] logs = check dbGetAuditLogs(entityType, entityId, page, 'limit);
-        return okResponse(logs.toJson());
+        models:AuditLogRow[] logs = check db:dbGetAuditLogs(entityType, entityId, page, 'limit);
+        return utils:okResponse(logs.toJson());
     }
 
     // GET /api/v1/docs — OpenAPI spec (redirect to Swagger UI hosted separately)

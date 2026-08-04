@@ -1,6 +1,7 @@
 // =============================================================================
 // audit.bal — Audit logging service (centralized)
 // =============================================================================
+import trainlk/backend.db;
 import ballerina/log;
 
 public isolated function logAudit(
@@ -8,7 +9,7 @@ public isolated function logAudit(
         string? entityType, string? entityId,
         json? oldValue, json? newValue,
         string? ip, string? ua, json metadata) returns error? {
-    error? result = dbInsertAuditLog(
+    error? result = db:dbInsertAuditLog(
         actorId == "" ? () : actorId,
         actorType, action, entityType, entityId,
         oldValue, newValue, ip, ua, metadata

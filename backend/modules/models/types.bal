@@ -2,24 +2,6 @@
 // types.bal — All record types, DTOs, and enums for the Train Booking API
 // =============================================================================
 
-// ── Configurable Variables ────────────────────────────────────────────────────
-configurable string   dbHost                = ?;
-configurable int      dbPort                = 5432;
-configurable string   dbName                = ?;
-configurable string   dbUser                = ?;
-configurable string   dbPassword            = ?;
-configurable string   jwtSecret             = ?;
-configurable int      jwtAccessExpirySeconds = 900;
-configurable int      jwtRefreshExpiryDays  = 7;
-configurable string   mfaEncryptionKey      = ?;
-configurable decimal  fareBaseRatePerKm     = 2.50d;
-configurable decimal  farePeakMultiplier    = 1.2d;
-configurable int      rateLimitGeneral      = 100;
-configurable int      rateLimitBooking      = 20;
-configurable int      rateLimitAuth         = 10;
-configurable string   corsAllowedOrigins    = "http://localhost:3000";
-configurable string   appEnv                = "development";
-
 // ── API Response Envelope ─────────────────────────────────────────────────────
 public type ApiResponse record {|
     boolean success;
@@ -51,6 +33,7 @@ public type PaginationMeta record {|
 // ── Custom Error Types ────────────────────────────────────────────────────────
 public type ValidationError distinct error;
 public type ConflictError    distinct error;
+public type DuplicateEmailError distinct error;
 public type NotFoundError    distinct error;
 public type AuthError        distinct error;
 public type RateLimitError   distinct error;

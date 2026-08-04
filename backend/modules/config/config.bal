@@ -1,0 +1,16 @@
+public configurable string   dbHost                = ?;
+public configurable int      dbPort                = 5432;
+public configurable string   dbName                = ?;
+public configurable string   dbUser                = ?;
+public configurable string   dbPassword            = ?;
+public configurable string   jwtSecret             = ?;
+public configurable int      jwtAccessExpirySeconds = 900;
+public configurable int      jwtRefreshExpiryDays  = 7;
+public configurable string   mfaEncryptionKey      = ?;
+public configurable decimal  fareBaseRatePerKm     = 2.50d;
+public configurable decimal  farePeakMultiplier    = 1.2d;
+public configurable int      rateLimitGeneral      = 100;
+public configurable int      rateLimitBooking      = 20;
+public configurable int      rateLimitAuth         = 10;
+public configurable string   corsAllowedOrigins    = "http://localhost:3000";
+public configurable string   appEnv                = "development";

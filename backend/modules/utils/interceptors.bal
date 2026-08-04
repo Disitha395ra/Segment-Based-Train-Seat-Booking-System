@@ -6,6 +6,9 @@
 //   4. ErrorInterceptor            — centralized error → standard response
 // =============================================================================
 
+import trainlk/backend.models;
+import trainlk/backend.db;
+import trainlk/backend.config;
 import ballerina/http;
 import ballerina/jwt;
 import ballerina/time;
@@ -21,7 +24,7 @@ public isolated service class SecurityHeadersInterceptor {
 
     remote isolated function interceptResponse(
             http:RequestContext ctx, http:Response res) returns http:NextService|error? {
-        res.setHeader("Access-Control-Allow-Origin",  corsAllowedOrigins);
+        res.setHeader("Access-Control-Allow-Origin",  config:corsAllowedOrigins);
         res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
         res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-ID");
         res.setHeader("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
@@ -57,23 +60,23 @@ public isolated service class RateLimitInterceptor {
         string group;
         int maxReqs;
         if pathStr.startsWith("/auth") {
-            group = RATE_LIMIT_GROUP_AUTH;
-            maxReqs = rateLimitAuth;
+            group = models:RATE_LIMIT_GROUP_AUTH;
+            maxReqs = config:rateLimitAuth;
         } else if pathStr.startsWith("/bookings") || pathStr == "/bookings" {
-            group = RATE_LIMIT_GROUP_BOOKING;
-            maxReqs = rateLimitBooking;
+            group = models:RATE_LIMIT_GROUP_BOOKING;
+            maxReqs = config:rateLimitBooking;
         } else {
-            group = RATE_LIMIT_GROUP_GENERAL;
-            maxReqs = rateLimitGeneral;
+            group = models:RATE_LIMIT_GROUP_GENERAL;
+            maxReqs = config:rateLimitGeneral;
         }
 
-        boolean|DatabaseError allowed = dbCheckAndIncrementRateLimit(ip, group, 60, maxReqs);
-        if allowed is DatabaseError {
+        boolean|models:DatabaseError allowed = db:dbCheckAndIncrementRateLimit(ip, group, 60, maxReqs);
+        if allowed is models:DatabaseError {
             log:printWarn("Rate limit DB check failed, allowing request", 'error = allowed);
             return ctx.next();
         }
         if !allowed {
-            return error RateLimitError("Rate limit exceeded for " + group + " endpoint group");
+            return error models:RateLimitError("Rate limit exceeded for " + group + " endpoint group");
         }
 
         // Inject rate limit headers
@@ -100,18 +103,18 @@ public isolated service class AuthInterceptor {
 
         string|http:HeaderNotFoundError authHeader = req.getHeader("Authorization");
         if authHeader is http:HeaderNotFoundError || !authHeader.startsWith("Bearer ") {
-            return error AuthError("Authorization header missing or malformed");
+            return error models:AuthError("Authorization header missing or malformed");
         }
 
         string token = authHeader.substring(7);
-        jwt:Payload|AuthError payload = validateAccessToken(token);
-        if payload is AuthError {
+        jwt:Payload|models:AuthError payload = validateAccessToken(token);
+        if payload is models:AuthError {
             return payload;
         }
 
         // Inject claims into context
-        string? userId = extractClaim(payload, JWT_CLAIM_USER_ID);
-        string? role   = extractClaim(payload, JWT_CLAIM_ROLE);
+        string? userId = extractClaim(payload, models:JWT_CLAIM_USER_ID);
+        string? role   = extractClaim(payload, models:JWT_CLAIM_ROLE);
         ctx.set("userId", userId ?: "");
         ctx.set("role",   role   ?: "PASSENGER");
 
@@ -158,39 +161,43 @@ public isolated service class ErrorInterceptor {
         string errorCode;
         string message;
 
-        if err is ValidationError {
+        if err is models:ValidationError {
             statusCode = 422;
             errorCode  = "VALIDATION_ERROR";
             message    = err.message();
-        } else if err is ConflictError {
+        } else if err is models:ConflictError {
             statusCode = 409;
             errorCode  = "SEAT_CONFLICT";
             message    = err.message();
-        } else if err is NotFoundError {
+        } else if err is models:DuplicateEmailError {
+            statusCode = 409;
+            errorCode  = "EMAIL_ALREADY_EXISTS";
+            message    = err.message();
+        } else if err is models:NotFoundError {
             statusCode = 404;
             errorCode  = "NOT_FOUND";
             message    = err.message();
-        } else if err is AuthError {
+        } else if err is models:AuthError {
             statusCode = 401;
             errorCode  = "UNAUTHORIZED";
             message    = err.message();
-        } else if err is RateLimitError {
+        } else if err is models:RateLimitError {
             statusCode = 429;
             errorCode  = "RATE_LIMIT_EXCEEDED";
             message    = "Too many requests. Please slow down.";
-        } else if err is MfaRequiredError {
+        } else if err is models:MfaRequiredError {
             statusCode = 403;
             errorCode  = "MFA_REQUIRED";
             message    = "Multi-factor authentication required";
-        } else if err is DatabaseError {
+        } else if err is models:DatabaseError {
             statusCode = 500;
             errorCode  = "DATABASE_ERROR";
             // Never expose internal DB errors to clients
-            message    = appEnv == "development" ? err.message() : "Internal server error";
+            message    = config:appEnv == "development" ? err.message() : "Internal server error";
         } else {
             statusCode = 500;
             errorCode  = "INTERNAL_ERROR";
-            message    = appEnv == "development" ? err.message() : "Internal server error";
+            message    = config:appEnv == "development" ? err.message() : "Internal server error";
         }
 
         log:printError("Request error", statusCode = statusCode,
@@ -227,7 +234,7 @@ public isolated service class ErrorInterceptor {
 }
 
 // ── Helper: build standard success response ───────────────────────────────────
-public isolated function okResponse(json data, PaginationMeta? pagination = ()) returns json {
+public isolated function okResponse(json data, models:PaginationMeta? pagination = ()) returns json {
     return {
         "success": true,
         "data": data,
@@ -241,7 +248,7 @@ public isolated function okResponse(json data, PaginationMeta? pagination = ()) 
     };
 }
 
-public isolated function paginationMeta(int page, int 'limit, int total) returns PaginationMeta {
+public isolated function paginationMeta(int page, int 'limit, int total) returns models:PaginationMeta {
     int totalPages = total == 0 ? 0 : (<int>(total / 'limit)) + (total % 'limit == 0 ? 0 : 1);
     return {page: page, 'limit: 'limit, total: total, totalPages: totalPages};
 }
@@ -254,7 +261,7 @@ public isolated function ctxRole(http:RequestContext ctx) returns string =>
     (ctx.get("role") is string) ? <string>ctx.get("role") : "PASSENGER";
 
 public isolated function requireRole(http:RequestContext ctx, string[] allowedRoles)
-        returns AuthError? {
+        returns models:AuthError? {
     string role = ctxRole(ctx);
     boolean found = false;
     foreach string r in allowedRoles {
@@ -264,7 +271,7 @@ public isolated function requireRole(http:RequestContext ctx, string[] allowedRo
         }
     }
     if !found {
-        return error AuthError("Insufficient permissions. Required role: " + allowedRoles.toString());
+        return error models:AuthError("Insufficient permissions. Required role: " + allowedRoles.toString());
     }
     return ();
 }

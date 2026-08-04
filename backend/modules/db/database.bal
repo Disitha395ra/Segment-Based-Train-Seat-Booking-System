@@ -3,6 +3,8 @@
 // Dependency-injected via function parameters (DI pattern #19)
 // =============================================================================
 
+import trainlk/backend.models;
+import trainlk/backend.config;
 import ballerina/sql;
 import ballerina/log;
 import ballerina/time;
@@ -10,19 +12,19 @@ import ballerinax/postgresql;
 import ballerinax/postgresql.driver as _;
 
 // ── Singleton DB client (initialized once, reused via DI) ───────────────────
-final postgresql:Client dbClient = check initDb();
+public final postgresql:Client dbClient = check initDb();
 
-function initDb() returns postgresql:Client|error {
+public function initDb() returns postgresql:Client|error {
     postgresql:Options opts = {
         connectTimeout: 10,
         socketTimeout: 30
     };
     postgresql:Client dbPgClient = check new (
-        host = dbHost,
-        port = dbPort,
-        database = dbName,
-        username = dbUser,
-        password = dbPassword,
+        host = config:dbHost,
+        port = config:dbPort,
+        database = config:dbName,
+        username = config:dbUser,
+        password = config:dbPassword,
         options = opts,
         connectionPool = {
             maxOpenConnections: 25,
@@ -35,51 +37,51 @@ function initDb() returns postgresql:Client|error {
 }
 
 // ── Helper: build standard offset for pagination ─────────────────────────────
-isolated function calcOffset(int page, int 'limit) returns int =>
+public isolated function calcOffset(int page, int 'limit) returns int =>
     ('limit * (page - 1));
 
 // =============================================================================
 // STATIONS
 // =============================================================================
-isolated function dbGetStations(int page, int 'limit)
-        returns StationRow[]|DatabaseError {
+public isolated function dbGetStations(int page, int 'limit)
+        returns models:StationRow[]|models:DatabaseError {
     int offset = calcOffset(page, 'limit);
-    stream<StationRow, sql:Error?> resultStream = dbClient->query(
+    stream<models:StationRow, sql:Error?> resultStream = dbClient->query(
         `SELECT id::text, name, code, order_index AS "orderIndex", distance_km AS "distanceKm"
            FROM stations
           WHERE deleted_at IS NULL
           ORDER BY order_index
           LIMIT ${'limit} OFFSET ${offset}`
     );
-    StationRow[]|error result = from StationRow row in resultStream select row;
+    models:StationRow[]|error result = from models:StationRow row in resultStream select row;
     if result is error {
         log:printError("dbGetStations failed", 'error = result);
-        return error DatabaseError("Failed to fetch stations", result);
+        return error models:DatabaseError("Failed to fetch stations", result);
     }
     return result;
 }
 
-isolated function dbCountStations() returns int|DatabaseError {
+public isolated function dbCountStations() returns int|models:DatabaseError {
     int|sql:Error result = dbClient->queryRow(
         `SELECT COUNT(*) FROM stations WHERE deleted_at IS NULL`
     );
     if result is sql:Error {
-        return error DatabaseError("Failed to count stations", result);
+        return error models:DatabaseError("Failed to count stations", result);
     }
     return result;
 }
 
-isolated function dbGetStationById(string id) returns StationRow|NotFoundError|DatabaseError {
-    StationRow|sql:Error result = dbClient->queryRow(
+public isolated function dbGetStationById(string id) returns models:StationRow|models:NotFoundError|models:DatabaseError {
+    models:StationRow|sql:Error result = dbClient->queryRow(
         `SELECT id::text, name, code, order_index AS "orderIndex", distance_km AS "distanceKm"
            FROM stations
           WHERE id = ${id}::uuid AND deleted_at IS NULL`
     );
     if result is sql:NoRowsError {
-        return error NotFoundError("Station not found: " + id);
+        return error models:NotFoundError("Station not found: " + id);
     }
     if result is sql:Error {
-        return error DatabaseError("Failed to fetch station", result);
+        return error models:DatabaseError("Failed to fetch station", result);
     }
     return result;
 }
@@ -87,30 +89,30 @@ isolated function dbGetStationById(string id) returns StationRow|NotFoundError|D
 // =============================================================================
 // TRAINS & COACHES
 // =============================================================================
-isolated function dbGetTrains() returns TrainRow[]|DatabaseError {
-    stream<TrainRow, sql:Error?> resultStream = dbClient->query(
+public isolated function dbGetTrains() returns models:TrainRow[]|models:DatabaseError {
+    stream<models:TrainRow, sql:Error?> resultStream = dbClient->query(
         `SELECT id::text, name, train_number AS "trainNumber",
                 departure_time::text AS "departureTime", is_active AS "isActive"
            FROM trains WHERE is_active = TRUE ORDER BY name`
     );
-    TrainRow[]|error result = from TrainRow row in resultStream select row;
+    models:TrainRow[]|error result = from models:TrainRow row in resultStream select row;
     if result is error {
-        return error DatabaseError("Failed to fetch trains", result);
+        return error models:DatabaseError("Failed to fetch trains", result);
     }
     return result;
 }
 
-isolated function dbGetCoachesByTrain(string trainId) returns CoachRow[]|DatabaseError {
-    stream<CoachRow, sql:Error?> resultStream = dbClient->query(
+public isolated function dbGetCoachesByTrain(string trainId) returns models:CoachRow[]|models:DatabaseError {
+    stream<models:CoachRow, sql:Error?> resultStream = dbClient->query(
         `SELECT id::text, train_id::text AS "trainId", coach_number AS "coachNumber",
                 coach_class AS "coachClass", total_seats AS "totalSeats"
            FROM coaches
           WHERE train_id = ${trainId}::uuid AND deleted_at IS NULL
           ORDER BY coach_number`
     );
-    CoachRow[]|error result = from CoachRow row in resultStream select row;
+    models:CoachRow[]|error result = from models:CoachRow row in resultStream select row;
     if result is error {
-        return error DatabaseError("Failed to fetch coaches", result);
+        return error models:DatabaseError("Failed to fetch coaches", result);
     }
     return result;
 }
@@ -119,10 +121,10 @@ isolated function dbGetCoachesByTrain(string trainId) returns CoachRow[]|Databas
 // SEAT AVAILABILITY — core business query
 // Returns all seats for a train + segment, with availability flag
 // =============================================================================
-isolated function dbGetSeatAvailability(
+public isolated function dbGetSeatAvailability(
         string trainId, string fromStationId, string toStationId, string travelDate)
-        returns SeatAvailability[]|DatabaseError {
-    stream<SeatAvailability, sql:Error?> resultStream = dbClient->query(
+        returns models:SeatAvailability[]|models:DatabaseError {
+    stream<models:SeatAvailability, sql:Error?> resultStream = dbClient->query(
         `SELECT
              s.id::text,
              s.coach_id::text    AS "coachId",
@@ -155,10 +157,10 @@ isolated function dbGetSeatAvailability(
           AND c.deleted_at  IS NULL
         ORDER BY c.coach_number, s.seat_number`
     );
-    SeatAvailability[]|error result = from SeatAvailability row in resultStream select row;
+    models:SeatAvailability[]|error result = from models:SeatAvailability row in resultStream select row;
     if result is error {
         log:printError("dbGetSeatAvailability failed", 'error = result);
-        return error DatabaseError("Failed to fetch seat availability", result);
+        return error models:DatabaseError("Failed to fetch seat availability", result);
     }
     return result;
 }
@@ -167,13 +169,13 @@ isolated function dbGetSeatAvailability(
 // BOOKING — core transaction
 // Uses SELECT FOR UPDATE to prevent concurrent double-booking
 // =============================================================================
-isolated function dbCreateBooking(
-        string userId, CreateBookingRequest req, string referenceCode,
+public isolated function dbCreateBooking(
+        string userId, models:CreateBookingRequest req, string referenceCode,
         int fromOrder, int toOrder, decimal fare, json fareBreakdown)
-        returns BookingRow|ConflictError|NotFoundError|DatabaseError|error {
+        returns models:BookingRow|models:ConflictError|models:NotFoundError|models:DatabaseError|error {
 
     time:Utc now = time:utcNow();
-    time:Utc heldUntil = time:utcAddSeconds(now, <decimal>(BOOKING_HOLD_MINUTES * 60));
+    time:Utc heldUntil = time:utcAddSeconds(now, <decimal>(models:BOOKING_HOLD_MINUTES * 60));
     string heldUntilStr = time:utcToString(heldUntil);
     string fareBreakdownStr = fareBreakdown.toString();
 
@@ -189,7 +191,7 @@ isolated function dbCreateBooking(
                 `SELECT id FROM seats WHERE id = ${sId}::uuid AND deleted_at IS NULL FOR UPDATE`
             );
             if lockResult is sql:Error {
-                fail error DatabaseError("Seat lock failed for seat: " + sId, lockResult);
+                fail error models:DatabaseError("Seat lock failed for seat: " + sId, lockResult);
             }
 
             // Check for overlapping confirmed/held bookings
@@ -202,10 +204,10 @@ isolated function dbCreateBooking(
                     AND to_station_order   > ${fromOrder}`
             );
             if overlapCount is sql:Error {
-                fail error DatabaseError("Overlap check failed for seat: " + sId, overlapCount);
+                fail error models:DatabaseError("Overlap check failed for seat: " + sId, overlapCount);
             }
             if overlapCount > 0 {
-                fail error ConflictError("One or more seats already booked for this segment");
+                fail error models:ConflictError("One or more seats already booked for this segment");
             }
         }
 
@@ -230,7 +232,7 @@ isolated function dbCreateBooking(
                 ${heldUntilStr}::timestamptz)`
         );
         if bookingResult is sql:Error {
-            fail error DatabaseError("Booking insert failed", bookingResult);
+            fail error models:DatabaseError("Booking insert failed", bookingResult);
         }
 
         // Step 4: Fetch the generated booking ID
@@ -238,7 +240,7 @@ isolated function dbCreateBooking(
             `SELECT id::text FROM bookings WHERE reference_code = ${referenceCode}`
         );
         if newBookingId is sql:Error {
-            fail error DatabaseError("Failed to fetch new booking id", newBookingId);
+            fail error models:DatabaseError("Failed to fetch new booking id", newBookingId);
         }
 
         // Step 5: Insert seat segment booking for ALL seats
@@ -251,23 +253,23 @@ isolated function dbCreateBooking(
                     ${req.travelDate}::date, 'HELD')`
             );
             if ssbResult is sql:Error {
-                fail error DatabaseError("Segment booking insert failed for seat: " + sId, ssbResult);
+                fail error models:DatabaseError("Segment booking insert failed for seat: " + sId, ssbResult);
             }
         }
 
         check commit;
     } on fail error err {
-        if err is ConflictError || err is DatabaseError {
+        if err is models:ConflictError || err is models:DatabaseError {
             return err;
         }
-        return error DatabaseError("Transaction failed", err);
+        return error models:DatabaseError("Transaction failed", err);
     }
 
     // Return the created booking
     return dbGetBookingByReference(referenceCode);
 }
 
-isolated function dbConfirmBooking(string bookingId) returns error? {
+public isolated function dbConfirmBooking(string bookingId) returns error? {
     transaction {
         _ = check dbClient->execute(
             `UPDATE bookings SET status = 'CONFIRMED', held_until = NULL
@@ -281,8 +283,8 @@ isolated function dbConfirmBooking(string bookingId) returns error? {
     }
 }
 
-isolated function dbCancelBooking(string bookingId)
-        returns NotFoundError|DatabaseError|error? {
+public isolated function dbCancelBooking(string bookingId)
+        returns models:NotFoundError|models:DatabaseError|error? {
     transaction {
         sql:ExecutionResult|sql:Error result = dbClient->execute(
             `UPDATE bookings
@@ -292,10 +294,10 @@ isolated function dbCancelBooking(string bookingId)
                 AND deleted_at IS NULL`
         );
         if result is sql:Error {
-            fail error DatabaseError("Cancel booking failed", result);
+            fail error models:DatabaseError("Cancel booking failed", result);
         }
         if result.affectedRowCount == 0 {
-            fail error NotFoundError("Booking not found or already cancelled");
+            fail error models:NotFoundError("Booking not found or already cancelled");
         }
         _ = check dbClient->execute(
             `UPDATE seat_segment_bookings SET status = 'CANCELLED'
@@ -303,16 +305,16 @@ isolated function dbCancelBooking(string bookingId)
         );
         check commit;
     } on fail error err {
-        if err is NotFoundError || err is DatabaseError {
+        if err is models:NotFoundError || err is models:DatabaseError {
             return err;
         }
-        return error DatabaseError("Cancel transaction failed", err);
+        return error models:DatabaseError("Cancel transaction failed", err);
     }
 }
 
-isolated function dbGetBookingByReference(string referenceCode)
-        returns BookingRow|NotFoundError|DatabaseError {
-    BookingRow|sql:Error result = dbClient->queryRow(
+public isolated function dbGetBookingByReference(string referenceCode)
+        returns models:BookingRow|models:NotFoundError|models:DatabaseError {
+    models:BookingRow|sql:Error result = dbClient->queryRow(
         `SELECT id::text, reference_code AS "referenceCode",
                 user_id::text AS "userId",
                 from_station_id::text AS "fromStationId",
@@ -330,17 +332,17 @@ isolated function dbGetBookingByReference(string referenceCode)
           WHERE reference_code = ${referenceCode} AND deleted_at IS NULL`
     );
     if result is sql:NoRowsError {
-        return error NotFoundError("Booking not found: " + referenceCode);
+        return error models:NotFoundError("Booking not found: " + referenceCode);
     }
     if result is sql:Error {
-        return error DatabaseError("Failed to fetch booking", result);
+        return error models:DatabaseError("Failed to fetch booking", result);
     }
     return result;
 }
 
-isolated function dbGetBookingById(string bookingId)
-        returns BookingRow|NotFoundError|DatabaseError {
-    BookingRow|sql:Error result = dbClient->queryRow(
+public isolated function dbGetBookingById(string bookingId)
+        returns models:BookingRow|models:NotFoundError|models:DatabaseError {
+    models:BookingRow|sql:Error result = dbClient->queryRow(
         `SELECT id::text, reference_code AS "referenceCode",
                 user_id::text AS "userId",
                 from_station_id::text AS "fromStationId",
@@ -358,18 +360,29 @@ isolated function dbGetBookingById(string bookingId)
           WHERE id = ${bookingId}::uuid AND deleted_at IS NULL`
     );
     if result is sql:NoRowsError {
-        return error NotFoundError("Booking not found: " + bookingId);
+        return error models:NotFoundError("Booking not found: " + bookingId);
     }
     if result is sql:Error {
-        return error DatabaseError("Failed to fetch booking", result);
+        return error models:DatabaseError("Failed to fetch booking", result);
     }
     return result;
 }
 
-isolated function dbGetUserBookings(string userId, int page, int 'limit)
-        returns BookingRow[]|DatabaseError {
+public isolated function dbGetBookingSeatIds(string bookingId) returns string[]|models:DatabaseError {
+    stream<record {| string seat_id; |}, sql:Error?> resultStream = dbClient->query(
+        `SELECT seat_id::text AS seat_id FROM seat_segment_bookings WHERE booking_id = ${bookingId}::uuid`
+    );
+    string[]|error seatIds = from var row in resultStream select row.seat_id;
+    if seatIds is error {
+        return error models:DatabaseError("Failed to fetch booking seats", seatIds);
+    }
+    return seatIds;
+}
+
+public isolated function dbGetUserBookings(string userId, int page, int 'limit)
+        returns models:BookingRow[]|models:DatabaseError {
     int offset = calcOffset(page, 'limit);
-    stream<BookingRow, sql:Error?> resultStream = dbClient->query(
+    stream<models:BookingRow, sql:Error?> resultStream = dbClient->query(
         `SELECT id::text, reference_code AS "referenceCode",
                 user_id::text AS "userId",
                 from_station_id::text AS "fromStationId",
@@ -388,19 +401,19 @@ isolated function dbGetUserBookings(string userId, int page, int 'limit)
           ORDER BY created_at DESC
           LIMIT ${'limit} OFFSET ${offset}`
     );
-    BookingRow[]|error result = from BookingRow row in resultStream select row;
+    models:BookingRow[]|error result = from models:BookingRow row in resultStream select row;
     if result is error {
-        return error DatabaseError("Failed to fetch user bookings", result);
+        return error models:DatabaseError("Failed to fetch user bookings", result);
     }
     return result;
 }
 
-isolated function dbCountUserBookings(string userId) returns int|DatabaseError {
+public isolated function dbCountUserBookings(string userId) returns int|models:DatabaseError {
     int|sql:Error result = dbClient->queryRow(
         `SELECT COUNT(*) FROM bookings WHERE user_id = ${userId}::uuid AND deleted_at IS NULL`
     );
     if result is sql:Error {
-        return error DatabaseError("Failed to count user bookings", result);
+        return error models:DatabaseError("Failed to count user bookings", result);
     }
     return result;
 }
@@ -408,9 +421,9 @@ isolated function dbCountUserBookings(string userId) returns int|DatabaseError {
 // =============================================================================
 // USERS & AUTH
 // =============================================================================
-isolated function dbGetUserByEmail(string email)
-        returns UserRow|NotFoundError|DatabaseError {
-    UserRow|sql:Error result = dbClient->queryRow(
+public isolated function dbGetUserByEmail(string email)
+        returns models:UserRow|models:NotFoundError|models:DatabaseError {
+    models:UserRow|sql:Error result = dbClient->queryRow(
         `SELECT id::text, email, password_hash AS "passwordHash",
                 password_salt AS "passwordSalt", full_name AS "fullName",
                 phone, role, mfa_enabled AS "mfaEnabled",
@@ -419,17 +432,17 @@ isolated function dbGetUserByEmail(string email)
           WHERE email = ${email} AND deleted_at IS NULL`
     );
     if result is sql:NoRowsError {
-        return error NotFoundError("User not found");
+        return error models:NotFoundError("User not found");
     }
     if result is sql:Error {
-        return error DatabaseError("Failed to fetch user", result);
+        return error models:DatabaseError("Failed to fetch user", result);
     }
     return result;
 }
 
-isolated function dbGetUserById(string userId)
-        returns UserRow|NotFoundError|DatabaseError {
-    UserRow|sql:Error result = dbClient->queryRow(
+public isolated function dbGetUserById(string userId)
+        returns models:UserRow|models:NotFoundError|models:DatabaseError {
+    models:UserRow|sql:Error result = dbClient->queryRow(
         `SELECT id::text, email, password_hash AS "passwordHash",
                 password_salt AS "passwordSalt", full_name AS "fullName",
                 phone, role, mfa_enabled AS "mfaEnabled",
@@ -438,33 +451,37 @@ isolated function dbGetUserById(string userId)
           WHERE id = ${userId}::uuid AND deleted_at IS NULL`
     );
     if result is sql:NoRowsError {
-        return error NotFoundError("User not found");
+        return error models:NotFoundError("User not found");
     }
     if result is sql:Error {
-        return error DatabaseError("Failed to fetch user", result);
+        return error models:DatabaseError("Failed to fetch user", result);
     }
     return result;
 }
 
-isolated function dbCreateUser(RegisterRequest req, string passwordHash, string salt)
-        returns string|DatabaseError {
+public isolated function dbCreateUser(models:RegisterRequest req, string passwordHash, string salt)
+        returns string|models:DatabaseError|models:DuplicateEmailError {
     sql:ExecutionResult|sql:Error result = dbClient->execute(
         `INSERT INTO users (email, password_hash, password_salt, full_name, phone)
          VALUES (${req.email}, ${passwordHash}, ${salt}, ${req.fullName}, ${req.phone})`
     );
     if result is sql:Error {
-        return error DatabaseError("Failed to create user", result);
+        string msg = result.message();
+        if msg.includes("duplicate key value violates unique constraint") || msg.includes("uq_user_email") {
+            return error models:DuplicateEmailError("User with this email already exists");
+        }
+        return error models:DatabaseError("Failed to create user", result);
     }
     string|sql:Error idResult = dbClient->queryRow(
         `SELECT id::text FROM users WHERE email = ${req.email}`
     );
     if idResult is sql:Error {
-        return error DatabaseError("Failed to retrieve new user id", idResult);
+        return error models:DatabaseError("Failed to retrieve new user id", idResult);
     }
     return idResult;
 }
 
-isolated function dbSaveRefreshToken(
+public isolated function dbSaveRefreshToken(
         string userId, string tokenHash, string expiresAt, string? ip, string? ua)
         returns error? {
     _ = check dbClient->execute(
@@ -473,8 +490,8 @@ isolated function dbSaveRefreshToken(
     );
 }
 
-isolated function dbGetRefreshToken(string tokenHash)
-        returns record {|string userId; string expiresAt; string? revokedAt;|}|NotFoundError|DatabaseError {
+public isolated function dbGetRefreshToken(string tokenHash)
+        returns record {|string userId; string expiresAt; string? revokedAt;|}|models:NotFoundError|models:DatabaseError {
     record {|string userId; string expiresAt; string? revokedAt;|}|sql:Error result =
         dbClient->queryRow(
             `SELECT user_id::text AS "userId", expires_at::text AS "expiresAt",
@@ -482,35 +499,35 @@ isolated function dbGetRefreshToken(string tokenHash)
                FROM refresh_tokens WHERE token_hash = ${tokenHash}`
         );
     if result is sql:NoRowsError {
-        return error NotFoundError("Refresh token not found");
+        return error models:NotFoundError("Refresh token not found");
     }
     if result is sql:Error {
-        return error DatabaseError("Failed to fetch refresh token", result);
+        return error models:DatabaseError("Failed to fetch refresh token", result);
     }
     return result;
 }
 
-isolated function dbRevokeRefreshToken(string tokenHash) returns error? {
+public isolated function dbRevokeRefreshToken(string tokenHash) returns error? {
     _ = check dbClient->execute(
         `UPDATE refresh_tokens SET revoked_at = NOW() WHERE token_hash = ${tokenHash}`
     );
 }
 
-isolated function dbRevokeAllUserRefreshTokens(string userId) returns error? {
+public isolated function dbRevokeAllUserRefreshTokens(string userId) returns error? {
     _ = check dbClient->execute(
         `UPDATE refresh_tokens SET revoked_at = NOW()
           WHERE user_id = ${userId}::uuid AND revoked_at IS NULL`
     );
 }
 
-isolated function dbEnableMfa(string userId, string encryptedSecret) returns error? {
+public isolated function dbEnableMfa(string userId, string encryptedSecret) returns error? {
     _ = check dbClient->execute(
         `UPDATE users SET mfa_enabled = TRUE, mfa_secret_encrypted = ${encryptedSecret}
           WHERE id = ${userId}::uuid`
     );
 }
 
-isolated function dbSaveBackupCodes(string userId, string[] codeHashes) returns error? {
+public isolated function dbSaveBackupCodes(string userId, string[] codeHashes) returns error? {
     foreach string codeHash in codeHashes {
         _ = check dbClient->execute(
             `INSERT INTO mfa_backup_codes (user_id, code_hash)
@@ -519,13 +536,13 @@ isolated function dbSaveBackupCodes(string userId, string[] codeHashes) returns 
     }
 }
 
-isolated function dbUseBackupCode(string userId, string codeHash) returns boolean|DatabaseError {
+public isolated function dbUseBackupCode(string userId, string codeHash) returns boolean|models:DatabaseError {
     sql:ExecutionResult|sql:Error result = dbClient->execute(
         `UPDATE mfa_backup_codes SET used_at = NOW()
           WHERE user_id = ${userId}::uuid AND code_hash = ${codeHash} AND used_at IS NULL`
     );
     if result is sql:Error {
-        return error DatabaseError("Failed to use backup code", result);
+        return error models:DatabaseError("Failed to use backup code", result);
     }
     return result.affectedRowCount > 0;
 }
@@ -533,9 +550,9 @@ isolated function dbUseBackupCode(string userId, string codeHash) returns boolea
 // =============================================================================
 // RATE LIMITING
 // =============================================================================
-isolated function dbCheckAndIncrementRateLimit(
+public isolated function dbCheckAndIncrementRateLimit(
         string identifier, string endpointGroup, int windowSeconds, int maxRequests)
-        returns boolean|DatabaseError {
+        returns boolean|models:DatabaseError {
     time:Utc now = time:utcNow();
     // Truncate to window boundary
     int windowStart = <int>(now[0] / windowSeconds) * windowSeconds;
@@ -551,7 +568,7 @@ isolated function dbCheckAndIncrementRateLimit(
          RETURNING request_count`
     );
     if upsertResult is sql:Error {
-        return error DatabaseError("Rate limit upsert failed", upsertResult);
+        return error models:DatabaseError("Rate limit upsert failed", upsertResult);
     }
 
     int|sql:Error countResult = dbClient->queryRow(
@@ -561,7 +578,7 @@ isolated function dbCheckAndIncrementRateLimit(
             AND window_start = ${windowStartStr}::timestamptz`
     );
     if countResult is sql:Error {
-        return error DatabaseError("Rate limit query failed", countResult);
+        return error models:DatabaseError("Rate limit query failed", countResult);
     }
     return countResult <= maxRequests;
 }
@@ -569,7 +586,7 @@ isolated function dbCheckAndIncrementRateLimit(
 // =============================================================================
 // AUDIT LOG — append only
 // =============================================================================
-isolated function dbInsertAuditLog(
+public isolated function dbInsertAuditLog(
         string? actorId, string actorType, string action,
         string? entityType, string? entityId,
         json? oldValue, json? newValue,
@@ -590,10 +607,10 @@ isolated function dbInsertAuditLog(
     );
 }
 
-isolated function dbGetAuditLogs(string? entityType, string? entityId, int page, int 'limit)
-        returns AuditLogRow[]|DatabaseError {
+public isolated function dbGetAuditLogs(string? entityType, string? entityId, int page, int 'limit)
+        returns models:AuditLogRow[]|models:DatabaseError {
     int offset = calcOffset(page, 'limit);
-    stream<AuditLogRow, sql:Error?> resultStream = dbClient->query(
+    stream<models:AuditLogRow, sql:Error?> resultStream = dbClient->query(
         `SELECT id::text, actor_id AS "actorId", actor_type AS "actorType",
                 action, entity_type AS "entityType", entity_id::text AS "entityId",
                 old_value::text AS "oldValue", new_value::text AS "newValue",
@@ -604,9 +621,9 @@ isolated function dbGetAuditLogs(string? entityType, string? entityId, int page,
           ORDER BY created_at DESC
           LIMIT ${'limit} OFFSET ${offset}`
     );
-    AuditLogRow[]|error result = from AuditLogRow row in resultStream select row;
+    models:AuditLogRow[]|error result = from models:AuditLogRow row in resultStream select row;
     if result is error {
-        return error DatabaseError("Failed to fetch audit logs", result);
+        return error models:DatabaseError("Failed to fetch audit logs", result);
     }
     return result;
 }
@@ -614,8 +631,8 @@ isolated function dbGetAuditLogs(string? entityType, string? entityId, int page,
 // =============================================================================
 // WAITLIST
 // =============================================================================
-isolated function dbCreateWaitlistEntry(string userId, CreateWaitlistRequest req)
-        returns WaitlistEntry|DatabaseError {
+public isolated function dbCreateWaitlistEntry(string userId, models:CreateWaitlistRequest req)
+        returns models:WaitlistEntry|models:DatabaseError {
     sql:ExecutionResult|sql:Error result = dbClient->execute(
         `INSERT INTO waitlist
            (user_id, seat_id, from_station_id, to_station_id, travel_date,
@@ -627,9 +644,9 @@ isolated function dbCreateWaitlistEntry(string userId, CreateWaitlistRequest req
             ${req.passengerName}, ${req.passengerEmail})`
     );
     if result is sql:Error {
-        return error DatabaseError("Failed to create waitlist entry", result);
+        return error models:DatabaseError("Failed to create waitlist entry", result);
     }
-    WaitlistEntry|sql:Error entry = dbClient->queryRow(
+    models:WaitlistEntry|sql:Error entry = dbClient->queryRow(
         `SELECT id::text, seat_id::text AS "seatId",
                 from_station_id::text AS "fromStationId",
                 to_station_id::text AS "toStationId",
@@ -645,12 +662,12 @@ isolated function dbCreateWaitlistEntry(string userId, CreateWaitlistRequest req
           ORDER BY created_at DESC LIMIT 1`
     );
     if entry is sql:Error {
-        return error DatabaseError("Failed to fetch waitlist entry", entry);
+        return error models:DatabaseError("Failed to fetch waitlist entry", entry);
     }
     return entry;
 }
 
-isolated function dbPromoteWaitlist(
+public isolated function dbPromoteWaitlist(
         string seatId, string fromStationId, string toStationId, string travelDate)
         returns error? {
     _ = check dbClient->execute(
@@ -672,9 +689,9 @@ isolated function dbPromoteWaitlist(
 // =============================================================================
 // ADMIN — occupancy & revenue
 // =============================================================================
-isolated function dbGetOccupancy(string travelDate)
-        returns OccupancyRecord[]|DatabaseError {
-    stream<OccupancyRecord, sql:Error?> resultStream = dbClient->query(
+public isolated function dbGetOccupancy(string travelDate)
+        returns models:OccupancyRecord[]|models:DatabaseError {
+    stream<models:OccupancyRecord, sql:Error?> resultStream = dbClient->query(
         `SELECT c.coach_number AS "coachNumber", c.coach_class AS "coachClass",
                 s.seat_number AS "seatNumber",
                 sf.code AS "fromStationCode", st.code AS "toStationCode",
@@ -690,17 +707,17 @@ isolated function dbGetOccupancy(string travelDate)
             AND ssb.status IN ('HELD','CONFIRMED')
           ORDER BY c.coach_number, s.seat_number`
     );
-    OccupancyRecord[]|error result = from OccupancyRecord row in resultStream select row;
+    models:OccupancyRecord[]|error result = from models:OccupancyRecord row in resultStream select row;
     if result is error {
-        return error DatabaseError("Failed to fetch occupancy", result);
+        return error models:DatabaseError("Failed to fetch occupancy", result);
     }
     return result;
 }
 
-isolated function dbGetRevenue(string fromDate, string toDate, int page, int 'limit)
-        returns RevenueRecord[]|DatabaseError {
+public isolated function dbGetRevenue(string fromDate, string toDate, int page, int 'limit)
+        returns models:RevenueRecord[]|models:DatabaseError {
     int offset = calcOffset(page, 'limit);
-    stream<RevenueRecord, sql:Error?> resultStream = dbClient->query(
+    stream<models:RevenueRecord, sql:Error?> resultStream = dbClient->query(
         `WITH booking_classes AS (
              SELECT DISTINCT b.id AS booking_id, c.coach_class
                FROM bookings b
@@ -724,9 +741,9 @@ isolated function dbGetRevenue(string fromDate, string toDate, int page, int 'li
           ORDER BY b.travel_date DESC, bc.coach_class
           LIMIT ${'limit} OFFSET ${offset}`
     );
-    RevenueRecord[]|error result = from RevenueRecord row in resultStream select row;
+    models:RevenueRecord[]|error result = from models:RevenueRecord row in resultStream select row;
     if result is error {
-        return error DatabaseError("Failed to fetch revenue", result);
+        return error models:DatabaseError("Failed to fetch revenue", result);
     }
     return result;
 }
@@ -734,7 +751,7 @@ isolated function dbGetRevenue(string fromDate, string toDate, int page, int 'li
 // =============================================================================
 // HEALTH CHECK
 // =============================================================================
-isolated function dbPingCheck() returns int|error {
+public isolated function dbPingCheck() returns int|error {
     time:Utc t0 = time:utcNow();
     int|sql:Error result = dbClient->queryRow(`SELECT 1`);
     time:Utc t1 = time:utcNow();
@@ -747,7 +764,7 @@ isolated function dbPingCheck() returns int|error {
 // =============================================================================
 // EXPIRE STALE HELD BOOKINGS (background job)
 // =============================================================================
-isolated function dbExpireHeldBookings() returns error? {
+public isolated function dbExpireHeldBookings() returns error? {
     transaction {
         _ = check dbClient->execute(
             `UPDATE bookings SET status = 'EXPIRED'
