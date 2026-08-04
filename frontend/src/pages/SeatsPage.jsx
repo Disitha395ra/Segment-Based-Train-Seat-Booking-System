@@ -98,7 +98,7 @@ export default function SeatsPage() {
 
   const handleBook = () => {
     if (selectedSeats.length === 0) return
-    navigate('/booking', {
+    navigate('/book', {
       state: {
         ...state,
         seatIds: selectedSeats.map(s => s.id),
