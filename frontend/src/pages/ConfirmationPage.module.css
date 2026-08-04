@@ -1,12 +1,48 @@
 .page { padding: var(--space-10) 0 var(--space-16); }
 
-.card {
+.ticket {
   background: var(--color-white);
-  border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-xl);
-  padding: var(--space-12) var(--space-10);
   box-shadow: var(--shadow-lg);
+  max-width: 500px;
+  margin: 0 auto;
+  overflow: hidden;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+}
+
+.ticketTop {
+  padding: var(--space-10) var(--space-10) var(--space-6);
   text-align: center;
+  background-color: var(--color-primary-50);
+}
+
+.ticketDivider {
+  height: 20px;
+  position: relative;
+  background-color: var(--color-white);
+  background-image: linear-gradient(to right, var(--color-neutral-300) 50%, transparent 50%);
+  background-size: 15px 2px;
+  background-repeat: repeat-x;
+  background-position: center;
+}
+
+.ticketDivider::before, .ticketDivider::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 20px;
+  height: 20px;
+  background-color: var(--color-bg);
+  border-radius: 50%;
+}
+
+.ticketDivider::before { left: -10px; }
+.ticketDivider::after { right: -10px; }
+
+
+.ticketBottom {
+  padding: var(--space-6) var(--space-10) var(--space-10);
+  background-color: var(--color-white);
 }
 
 .checkmark {
@@ -24,35 +60,37 @@
 }
 
 .title {
-  font-size: var(--font-size-3xl);
-  color: var(--color-primary-800);
+  font-size: var(--font-size-2xl);
+  color: var(--color-success-700);
   margin-bottom: var(--space-3);
+  font-weight: 700;
 }
 
 .subtitle {
-  color: var(--color-neutral-500);
-  margin-bottom: var(--space-8);
+  color: var(--color-neutral-600);
+  margin-bottom: var(--space-6);
+  font-size: var(--font-size-sm);
 }
 
 .refBox {
   background: var(--color-primary-800);
   border-radius: var(--radius-lg);
-  padding: var(--space-6);
-  margin-bottom: var(--space-8);
+  padding: var(--space-4) var(--space-6);
+  display: inline-block;
 }
 
 .refLabel {
   display: block;
   font-size: var(--font-size-xs);
-  color: rgba(255,255,255,0.6);
+  color: rgba(255,255,255,0.7);
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--space-1);
 }
 
 .refCode {
   display: block;
-  font-size: var(--font-size-3xl);
+  font-size: 1.5rem;
   font-weight: var(--font-weight-bold);
   color: var(--color-accent-400);
   letter-spacing: 0.1em;
@@ -61,7 +99,6 @@
 
 .details {
   text-align: left;
-  border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-lg);
   overflow: hidden;
   margin-bottom: var(--space-6);
@@ -71,25 +108,44 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-3) var(--space-5);
+  padding: var(--space-3) 0;
   font-size: var(--font-size-sm);
-  border-bottom: 1px solid var(--color-neutral-100);
+  border-bottom: 1px dashed var(--color-neutral-200);
 }
 .detailRow:last-child { border-bottom: none; }
-.detailRow span { color: var(--color-neutral-500); }
-.detailRow strong { color: var(--color-neutral-800); }
+.detailRow span { color: var(--color-neutral-500); font-weight: 500; }
+.detailRow strong { color: var(--color-neutral-800); text-align: right; }
 
 .fare { color: var(--color-primary-700) !important; font-size: var(--font-size-lg); }
 
-.segmentNote {
+.qrSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: var(--space-8) 0;
+}
+
+.qrNote {
   font-size: var(--font-size-xs);
-  color: var(--color-neutral-400);
-  background: var(--color-neutral-50);
+  color: var(--color-neutral-500);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: var(--space-3);
+  font-weight: 600;
+}
+
+.qrCodeWrapper {
+  padding: var(--space-2);
+  background: white;
   border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-md);
-  padding: var(--space-4);
+}
+
+.segmentNote {
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
+  text-align: center;
   margin-bottom: var(--space-8);
-  text-align: left;
   line-height: var(--line-height-relaxed);
 }
 
@@ -108,6 +164,7 @@
   text-decoration: none;
   transition: all var(--transition-fast);
   display: inline-block;
+  cursor: pointer;
 }
 
 .newBookingBtn {
